@@ -307,10 +307,18 @@ void Solver::calc_column_indices_dict()
 					}
 
 					// codes below calculate column_indices_dict[vars][inst][is_unique_ordered][mapping_indices_each_type]
+					// 					cout<<"vars: "<<vec_to_str(vars)<<endl;
+					// cout<<"inst: "<<vec_to_str(inst)<<endl;
+					// cout<<"mapping_each_type: ";
+					// for(auto const& mapping: mapping_each_type){
+					// 	cout<<vec_to_str(mapping)<<" ";
+					// }
+					// cout<<endl;
 					vector<int> column_indices;
 					column_indices.reserve(number_predicates * 2);
-					for (const vector<int>& discretized_p : discretized_predicates)
+					for (const vector<int> &discretized_p : discretized_predicates)
 					{
+						// cout<<"discretized_p: "<<vec_to_str(discretized_p)<<endl;
 						int remapped_predicate_index = processor.mapcall(vars, inst, discretized_p, mapping_each_type);
 						if (remapped_predicate_index == INVALID_PREDICATE_COLUMN && !column_compression_on && !asymmetric_relation_warning_sent)
 						{
@@ -844,6 +852,14 @@ void Solver::enumerate_dnf(const vars_t& vars, const qalter_t& qalter, inv_set_t
 
 					// 7) check candidate_inv against the samples
 					bool inv_hold_on_samples = true;
+					bool debug = false;
+
+					// if(qalter==vector<bool>{false,false,true,false}){
+					// 	if(candidate_inv == set<vector<int>>{{5},{15},{23}}){
+					// 		if(vars == vars_t{2,1,1,1})
+					// 			debug = true;
+					// 	}
+					// }
 					// for (map<inst_t, DataMatrix>::const_iterator it = inst_data_mat_dict.begin(); it != inst_data_mat_dict.end(); it++)  // for debug, use original csvs to check if data projection goes wrong
 					for (map<inst_t, DataMatrix>::const_iterator it = inst_data_mat_dict_each_leading_forall.at(leading_forall_vars).begin(); it != inst_data_mat_dict_each_leading_forall.at(leading_forall_vars).end(); it++)
 					{
@@ -852,6 +868,7 @@ void Solver::enumerate_dnf(const vars_t& vars, const qalter_t& qalter, inv_set_t
 						// for example, if the instance has only one node, then forall N1 < N2. p(N1,N2) automatically holds on all samples
 						const inst_t& inst = it->first;
 						const DataMatrix& data_mat = it->second;
+						if(debug) cout<<"inst: "<<vec_to_str(inst)<<endl;
 						if (column_indices_dict.at(vars).at(inst).find(is_unique_ordered) != column_indices_dict.at(vars).at(inst).end())
 						{
 							int check_result = check_if_inv_on_csv(vars, qalter, inst, candidate_inv, data_mat, column_indices_dict.at(vars).at(inst).at(is_unique_ordered));
@@ -865,6 +882,10 @@ void Solver::enumerate_dnf(const vars_t& vars, const qalter_t& qalter, inv_set_t
 					}
 					if (inv_hold_on_samples)
 					{
+						cout<<"Invariant found: ";
+						for(const clause_t& anded_clause : candidate_inv)
+							cout<<vec_to_str(anded_clause)<<" ";
+						cout<<endl;
 						inv_results.insert(candidate_inv);
 						add_inv_with_permutations_and_subsets(extended_invs, vars, is_unique_ordered, candidate_inv);
 						add_PQR_implied_invs(inv_results, extended_invs, vars, is_unique_ordered, base_implied_formulas_each_clause, anded_clauses, candidate_inv, exists_type_list.size() > 0);
@@ -1113,6 +1134,19 @@ int Solver::check_if_inv_on_csv(const vars_t& vars, const qalter_t& qalter, cons
 	// then the candidate invariant has shape forall X1 < X2. exists Y1 Y2. forall Z1. ...
 	// the keys one_column_indices_dict are [0,0,0], [0,0,1], [0,1,0], [0,1,1], ..., [0,3,0], [0,3,1], [1,0,0], ..., [1,3,1], [2,0,0], ..., [2,3,1]
 	// the first element can take 3 values which corresponds to X1 X2 -> x1 x2 | x1 x3 | x2 x3, second element 4 values Y1 Y2 -> y1 y1 | y1 y2 | y2 y1 | y2 y2, third element 2 values Z1 -> z1 | z2
+		bool debug = false;
+	// if(qalter==vector<bool>{false,false,true,false}){
+	// 	if(candidate_inv == set<vector<int>>{{5},{15},{23}}){
+	// 		if(vars == vars_t{2,1,1,1})
+	// 			debug = true;
+	// 	}
+	// }
+	if(debug){
+		cout<<"DEBUG!"<<endl;
+		for(auto const& [key, value]: one_column_indices_dict){
+			cout<<vec_to_str(key)<<" -> "<<vec_to_str(value)<<endl;
+		}
+	}
 	int nrow = data_mat.nrow;
 	int** data_ptr = data_mat.data_ptr;
 	vector<int> num_mapping_each_type(num_types);
@@ -1746,6 +1780,7 @@ void Solver::calc_deuniqued_invs(const vars_t& vars, const qalter_t& qalter, vec
 
 void Solver::find_strengthen_safety_invs()
 {
+	cout<<"WARNING: find_strengthen_safety_invs"<<endl;
 	vars_t all_one_vars(num_types, 1);
 	const vector<string>& predicates_at_lowest_vars = predicates_dict.at(all_one_vars);
 	int num_predicates_lowest_vars = predicates_at_lowest_vars.size();
@@ -1885,41 +1920,4 @@ void Solver::encode_and_output(const string& outfile, map<int, tuple<vars_t, qal
 	vector<string> str_invs;
 	encoder.encode_invs_dict(invs_dict, predicates_dict, str_invs, id_to_inv, more_invs);
 	encoder.append_invs_ivy(input_ivy_file, outfile, str_invs);
-}
-
-void Solver::run_simplifiable_unit_tests()
-{
-	vector<vector<clause_t>> formula0 = { {{0}} };                        // p
-	cout << check_if_bagged_formula_is_simplified(formula0, 10) << endl;  // should be true
-	vector<vector<clause_t>> formula1 = { {{0, 2}, {0, 12}} };            // (p /\ q) \/ (p /\ ~q)
-	cout << check_if_bagged_formula_is_simplified(formula1, 10) << endl;  // should be false
-	vector<vector<clause_t>> formula2 = { {{0, 2}}, {{0, 12, 13} }};      // (p /\ q) \/ (p /\ ~q /\ ~r)
-	cout << check_if_bagged_formula_is_simplified(formula2, 10) << endl;  // should be false
-	vector<vector<clause_t>> formula3 = { {{0, 3, 12}, {0, 12, 13}} };    // (p /\ r /\ ~q) \/ (p /\ ~q /\ ~r)
-	cout << check_if_bagged_formula_is_simplified(formula3, 10) << endl;  // should be false
-	vector<vector<clause_t>> formula4 = { {{5}}, {{4, 10, 11}, {0, 2, 4}, {1, 2, 4}} };  // (~p /\ ~q /\ s) \/ (p /\ r /\ s) \/ (q /\ r /\ s) \/ t
-	cout << check_if_bagged_formula_is_simplified(formula4, 10) << endl;  // should be false
-	vector<vector<clause_t>> formula5 = { {{0, 2}, {10, 12}} };           // (p /\ q) \/ (~p /\ ~q)
-	cout << check_if_bagged_formula_is_simplified(formula5, 10) << endl;  // should be true
-	vector<vector<clause_t>> formula6 = { {{0, 12}}, {{0, 3, 12} } };     // (p /\ ~q) \/ (p /\ r /\ ~q)
-	cout << check_if_bagged_formula_is_simplified(formula6, 10) << endl;  // should be false
-	vector<vector<clause_t>> formula7 = { {{7}}, {{17, 19} } };           // p \/ (~p /\ ~q)
-	cout << check_if_bagged_formula_is_simplified(formula7, 10) << endl;  // should be false
-}
-
-void Solver::run_tautology_DE_unit_tests()
-{
-	unordered_map<inv_t, bool, SetVectorHash> curr_checked_tautology_dict;
-	inv_t formula0 = { {0, 2}, {0, 12} };                                 // (p /\ q) \/ (p /\ ~q)
-	cout << helper.check_if_candidate_inv_is_tautology(formula0, 10, curr_checked_tautology_dict);  // should be false
-	inv_t formula1 = { {0, 2}, {10, 12}, {2, 10} };                       // (p /\ q) \/ (~p /\ ~q) \/ (~p /\ q)
-	cout << helper.check_if_candidate_inv_is_tautology(formula1, 10, curr_checked_tautology_dict);  // should be false
-	inv_t formula2 = { {3}, {13} };                                       // p \/ ~p
-	cout << helper.check_if_candidate_inv_is_tautology(formula2, 10, curr_checked_tautology_dict);  // should be true
-	inv_t formula3 = { {3}, {17}, {7, 13} };                              // p \/ ~q \/ (q /\ ~p)
-	cout << helper.check_if_candidate_inv_is_tautology(formula3, 10, curr_checked_tautology_dict);  // should be true
-	inv_t formula4 = { {0, 2}, {10, 12}, {2, 10}, {0, 12} };              // (p /\ q) \/ (~p /\ ~q) \/ (~p /\ q) \/ (p /\ ~q)
-	cout << helper.check_if_candidate_inv_is_tautology(formula4, 10, curr_checked_tautology_dict);  // should be true
-	inv_t formula5 = { {{7}}, {{17, 19} } };                              // p \/ (~p /\ ~q)
-	cout << helper.check_if_candidate_inv_is_tautology(formula5, 10, curr_checked_tautology_dict);  // should be false
 }

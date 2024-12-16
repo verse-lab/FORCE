@@ -6,7 +6,7 @@ default: main
 main: main.o basics.o preprocessing.o StringProcessor.o Helper.o Solver.o InvRefiner.o CounterexampleHandler.o InvEncoder.o
 	$(CC) $(CFLAGS) -pthread -o main main.o basics.o preprocessing.o StringProcessor.o Helper.o Solver.o InvRefiner.o CounterexampleHandler.o InvEncoder.o
 
-main.o: main.cpp Solver.h
+main.o: main.cpp Solver2.h
 	$(CC) $(CFLAGS) -c main.cpp
 
 basics.o: basics.cpp basics.h
@@ -21,7 +21,7 @@ StringProcessor.o: StringProcessor.cpp StringProcessor.h
 Helper.o: Helper.cpp Helper.h
 	$(CC) $(CFLAGS) -c Helper.cpp
 
-Solver.o: Solver.cpp Solver.h
+Solver.o: Solver2.cpp Solver2.h
 	$(CC) $(CFLAGS) -c Solver.cpp
 
 InvRefiner.o: InvRefiner.cpp InvRefiner.h

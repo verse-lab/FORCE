@@ -83,6 +83,97 @@ bool Helper::bfs_check_connectivity(const vector<set<int>>& edges, const clause_
 	return graph_connected;
 }
 
+void Helper::calc_anded_clauses_fixed(int number_predicates, const map<string, vector<int>>& var_in_p, const vector<string>& exists_vars, vector<vector<clause_t>>& anded_clauses, vector<map<clause_t, vector<clause_t>>>& connected_components_dicts)
+//TODO: lemma 6 needs to be amended
+{
+	anded_clauses.resize(config.max_anded_literals + 1);
+	connected_components_dicts.resize(config.max_anded_literals + 1);
+	// build the graph, node represents predicate, add edge between nodes iff predicates share an existentially quantified variable
+	vector<set<int>> edges(number_predicates);
+	for (const string& exists_var : exists_vars)
+	{
+		const vector<int>& p_indices = var_in_p.at(exists_var);
+		int num_p = p_indices.size();
+		for (int i = 0; i < num_p; i += 2)  // var_in_p includes both p and ~p. ~p always follows p. ~p is not needed for now
+		{
+			for (int j = i + 2; j < num_p; j += 2)
+			{
+				edges[p_indices[i]].insert(p_indices[j]);
+				edges[p_indices[j]].insert(p_indices[i]);
+			}
+		}
+	}
+	
+	vector<int> range_number_predicates(number_predicates);
+	for (int i = 0; i < number_predicates; i++) range_number_predicates[i] = i;
+	for (int num_terms = 1; num_terms <= config.max_anded_literals; num_terms++)
+	{
+		vector<clause_t> candidate_clauses;
+		// enumerate anded_clauses, does not include negation
+		calc_combinations(range_number_predicates, num_terms, candidate_clauses);
+		vector<vector<int>> p_notp_pairs(num_terms);
+		for (int i = 0; i < num_terms; i++) p_notp_pairs[i].resize(2);
+		unsigned two_to_num_terms = 1;
+		for (int i = 0; i < num_terms; i++) two_to_num_terms *= 2;
+		for (const clause_t& candidate_clause : candidate_clauses)
+		{
+			vector<clause_t> connected_components;
+			bool connected = bfs_check_connectivity(edges, candidate_clause, connected_components);
+			if (connected)
+			{
+				// add negations
+				for (int i = 0; i < num_terms; i++)
+				{
+					p_notp_pairs[i][0] = candidate_clause[i];
+					p_notp_pairs[i][1] = candidate_clause[i] + number_predicates;
+				}
+				vector<clause_t> clauses_including_negation = cart_product(p_notp_pairs);
+				for (clause_t& clause : clauses_including_negation)
+				{
+					std::sort(clause.begin(), clause.end());  // each anded_clause is sorted
+					anded_clauses[num_terms].push_back(clause);
+				}
+			}
+			else
+			{
+				map<int, pair<int, int>> p_index_pair_in_connected_components_dict;  // a reverse index, 9 -> (3,2) means predicate #9 is the 2nd element of the 3rd connected component
+				int num_connected_componented = connected_components.size();
+				for (int i = 0; i < num_connected_componented; i++)
+				{
+					int this_component_size = connected_components[i].size();
+					for (int j = 0; j < this_component_size; j++)
+					{
+						p_index_pair_in_connected_components_dict[connected_components[i][j]] = std::make_pair(i, j);
+					}
+				}
+				vector<bool> negated_each_p(num_terms);
+				for (unsigned index_number = 0; index_number < two_to_num_terms; index_number++)
+				{
+					for (int i = 0; i < num_terms; i++) negated_each_p[i] = (index_number >> i) & 1U;
+					clause_t candidate_clause_copy = candidate_clause;
+					vector<clause_t> connected_components_copy = connected_components;
+					for (int i = 0; i < num_terms; i++) 
+					{
+						if (negated_each_p[i])
+						{
+							const pair<int, int>& p_index_pair = p_index_pair_in_connected_components_dict.at(candidate_clause_copy[i]);
+							candidate_clause_copy[i] += number_predicates;
+							connected_components_copy[p_index_pair.first][p_index_pair.second] += number_predicates;
+						}
+					}
+					std::sort(candidate_clause_copy.begin(), candidate_clause_copy.end());
+					for (vector<int>& one_connected_component : connected_components_copy)
+					{
+						std::sort(one_connected_component.begin(), one_connected_component.end());
+					}
+					connected_components_dicts[num_terms][candidate_clause_copy] = connected_components_copy;
+				}
+			}
+		}
+		std::sort(anded_clauses[num_terms].begin(), anded_clauses[num_terms].end());
+	}
+}
+
 void Helper::calc_anded_clauses(int number_predicates, const map<string, vector<int>>& var_in_p, const vector<string>& exists_vars, vector<vector<clause_t>>& anded_clauses, vector<map<clause_t, vector<clause_t>>>& connected_components_dicts)
 {
 	anded_clauses.resize(config.max_anded_literals + 1);

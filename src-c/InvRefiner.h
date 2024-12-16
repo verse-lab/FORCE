@@ -1,13 +1,13 @@
 #ifndef INVREFINER_H
 #define INVREFINER_H
 
-#include "Solver.h"
+#include "Solver2.h"
 #include "CounterexampleHandler.h"
 #include <future>
 #include <thread>
 #include <functional>
 #include <csignal>
-#include <sys/prctl.h>
+// #include <sys/prctl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>  
@@ -16,7 +16,7 @@
 #include <sys/types.h>
 
 #define SAFETY_PROPERTY_ID 1000000
-#define IVY_CHECK_PATH "/home/me/anaconda3/envs/py2/bin/ivy_check"  // change this to absolute path of ivy_check on your machine
+#define IVY_CHECK_PATH "/Users/ydl/miniconda3/envs/duoai/bin/ivy_check"
 #define SELF_INDUCTIVE_MAJORITY true
 #define LOAD_SELF_INDUCTIVENESS_FROM_FILE false  // default: false, turn to true to save self-inductiveness checking time when debugging 
 #define TOP_DOWN_MAX_INV 100

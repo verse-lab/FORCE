@@ -600,7 +600,7 @@ bool InvRefiner::auto_refine()
 			{
 				signal(SIGINT, mysigint);  // if the main process succeeds, the child process will receive SIGINT from the main process and exit
 				signal(SIGHUP, mysighup);  // if the main process is shut down externally, the child process will receive SIGHUP from Linux kernel and exit
-				prctl(PR_SET_PDEATHSIG, SIGHUP);
+				// prctl(PR_SET_PDEATHSIG, SIGHUP);
 				refine_degree = Refine_degree::removal_only;
 				default_output_ivy_inv_file = default_output_ivy_inv_file.substr(0, default_output_ivy_inv_file.size() - 4) + "_child.ivy";
 				default_ivy_log_file = default_ivy_log_file.substr(0, default_ivy_log_file.size() - 4) + "_child.txt";
@@ -633,6 +633,7 @@ bool InvRefiner::auto_refine()
 bool InvRefiner::auto_enumerate_and_refine()
 {
 	auto_solve();
+	// return 0; // for enumeration only
 	return auto_refine();
 }
 
