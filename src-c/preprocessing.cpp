@@ -51,6 +51,7 @@ void read_config(const string& config_file, Config* config)
 		{
 			assert(config->type_order.size() == 0);
 			assert(config->type_name_to_index.size() == 0);
+			int idx = 0;
 			vector<vector<string>> groups;
 			two_delimeters_parse_line(line.substr(10), ';', ':', groups);
 			int type_index = 0;
@@ -61,6 +62,10 @@ void read_config(const string& config_file, Config* config)
 				config->type_name_to_index[type_name] = type_index;
 				vector<string> var_names;
 				split_string(group[1], ',', var_names);
+				for (const string &var_name : var_names)
+				{
+					config->vars_to_idx[var_name] = idx++;
+				}
 				config->template_vars_map[type_name] = var_names;
 				type_index++;
 			}

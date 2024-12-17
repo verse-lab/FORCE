@@ -180,7 +180,9 @@ void split_n_into_k_numbers_bulk(int N, int K, int R, vector<vector<vector<vecto
 					if (lower_comb[lower_comb_last_index] > last_number) break;
 					vector<int> new_comb = lower_comb;
 					new_comb.push_back(last_number);
-					results[n][k].push_back(new_comb);
+					//TODO: why this is needed?
+					if(find(results[n][k].begin(),results[n][k].end(),new_comb) == results[n][k].end())
+						results[n][k].push_back(new_comb);
 				}
 			}
 		}

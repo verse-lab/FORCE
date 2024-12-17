@@ -633,8 +633,8 @@ bool InvRefiner::auto_refine()
 bool InvRefiner::auto_enumerate_and_refine()
 {
 	auto_solve();
-	// return 0; // for enumeration only
-	return auto_refine();
+	return 0; // for enumeration only
+	// return auto_refine();
 }
 
 void InvRefiner::encode_and_output(const string& infile, const string& outfile, const invs_dict_t& invs_dict_to_encode, map<int, tuple<vars_t, qalter_t, inv_t>>& id_to_inv, const vector<tuple<vars_t, qalter_t, string>>& more_invs)

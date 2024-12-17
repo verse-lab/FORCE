@@ -37,6 +37,21 @@ using std::reverse_iterator;
 #define not_implemented_exception(s) (std::runtime_error(string("Not implemented yet! ") + s))
 #define startswith(s1,s2) (s1.rfind(s2, 0) == 0)
 
+inline string vec_to_tuple(const vector<int> &vec)
+{
+	string output = "(";
+	for (auto const &var : vec)
+	{
+		output += std::to_string(var) + ", ";
+	}
+	if (vec.size() > 1)
+	{
+		output.pop_back();
+	}
+	output.pop_back();
+	return output + ")";
+}
+
 inline string vec_to_str(const vector<int>& vec)
 {
 	string output = "(";
@@ -84,6 +99,7 @@ struct Config
 	map<string, pair<vector<int>, int>> functions;
 	map<string, int> individuals;
 	map<string, vector<string>> template_vars_map;  // key: type name (e.g., "node"), value: variable names (e.g., ["N1", "N2", "N3"])
+	map<string, int> vars_to_idx;				   // key: variable name, value: variable index
 	vector<inst_t> instance_sizes;  // e.g., [[2,1,2], [2,1,3], [2,2,2], [2,2,3], ...], consistent with type_order
 	bool hard;
 	vector<string> safety_properties;
@@ -211,5 +227,44 @@ template <typename T>
 void calc_powerset(const vector<T>& input_seq, vector<vector<T>>& output_seq);
 template<typename T>
 vector<vector<T>> cart_product(const vector<vector<T>>& v);
+
+
+class Timer
+{
+public:
+	// Constructor starts the timer
+	Timer(const std::string &name) : name_(name), total_duration_(0), is_running_(false) {}
+
+	// Start or restart the timer
+	void start()
+	{
+		start_ = std::chrono::high_resolution_clock::now();
+		is_running_ = true;
+	}
+
+	// Stop the timer and accumulate the duration
+	void stop()
+	{
+		if (is_running_)
+		{
+			auto end = std::chrono::high_resolution_clock::now();
+			total_duration_ += std::chrono::duration_cast<std::chrono::microseconds>(end - start_).count();
+			is_running_ = false;
+		}
+	}
+
+	// Print the accumulated duration
+	void print_total_duration() const
+	{
+		std::cout << "Total duration for " << name_ << ": " << total_duration_ << " microseconds" << std::endl;
+	}
+
+private:
+	std::string name_;
+	std::chrono::time_point<std::chrono::high_resolution_clock> start_;
+	long long total_duration_; // Accumulated time
+	bool is_running_;
+};
+
 
 #endif

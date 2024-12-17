@@ -41,6 +41,7 @@ public:
 	bool parse_inv_str(const string& inv_str_, vars_t& vars, qalter_t& qalter, vector<tuple<string, vector<string>, bool>>& inv_rep);
 	string generate_new_inv_str(const vector<tuple<string, vector<string>, bool>>& inv_rep, const tuple<string, string, bool, bool>& transform);
 	void add_checked_invs(vector<tuple<vars_t, qalter_t, string>>& output_vec_invs);
+	void from_config_to_predicates(vector<string> &predicates, map<int, string> &var_to_type);
 };
 
 #endif

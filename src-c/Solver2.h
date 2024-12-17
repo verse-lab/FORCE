@@ -6,6 +6,7 @@
 #include "Helper.h"
 #include "InvEncoder.h"
 #include "StringProcessor.h"
+#include <clingo.hh>
 
 #define COLUMN_COMPRESSION_THRESHOLD 50
 #define BOUND_MAX_OR_COLUMN_THREDHOLD 75
@@ -20,6 +21,7 @@ private:
 	// not used for ours, but for further Houdini
 	map<vars_t, map<vector<bool>, vector<vector<int>>>> self_mapped_predicates_dict;  // second key is is_ordered_unique
 	map<vars_t, map<pair<int,int>, map<vector<vector<int>>, vector<int>>>> self_mapped_new_predicates_each_mapping;
+	void find_strengthen_safety_invs();
 
 	void precompute_vars_self_mapping(const vars_t& vars, const qalter_t& qalter);
 	void calc_self_mapped_predicates_each_mapping();
@@ -37,7 +39,6 @@ private:
 	void calc_varinp_and_ptoidx();
 	void calc_single_type_mappings();
 	void calc_single_type_self_mappings();
-	
 	void calc_column_indices_dict();
 	void calc_lowhighvars_column_indices_dict();
 	void calc_inst_data_mat_dict_each_leading_forall();
@@ -45,9 +46,39 @@ private:
 	void reduce_predicates(vector<string>& old_predicates, vector<string>& new_predicates, int type_index, int var_index_to_remove) const;
 	void calc_vars_traversal_order();
 	void calc_vars_qalters_exists_number();
-	void enumerate_dnf(const vars_t& vars, const qalter_t& qalter, inv_set_t& inv_results);
+	
 
 	bool check_if_qfree_dnf_formula_holds_on_data_line(const int* data_line, const vector<vector<int>>& candidate_inv_as_data_indices) const;
+	
+
+	Clingo::Control clause;
+    Clingo::Control dnf;
+	map<vars_t, vector<int>> pred_idx;
+	int current_grounded{0};
+    int lit_num{0};
+    int cube_num{0};
+	map<int, string> var_to_type;
+	tuple<int, int, vars_t> clause_setting;
+    vector<int> dnf_setting; 
+    bool init_dnf;
+
+	Timer solve_timer;
+    Timer ground_timer;
+    Timer other_timer;
+
+	void prepare_clingo(Clingo::StringSpan args);
+	void clause_search();
+	void dnf_search();
+	bool model_to_formula(const Clingo::SymbolVector &formula, vars_t &vars, vector<pair<Clingo::Symbol, Clingo::Symbol>> &inv, vars_t &exist_vars);
+	bool model_to_clause(const Clingo::SymbolVector &formula, vars_t &vars, vector<pair<Clingo::Symbol, Clingo::Symbol>> &inv, vars_t &exist_vars);
+	void ground_clause(const vector<vector<pair<Clingo::Symbol, Clingo::Symbol>>> &invs, const vector<vars_t> &exists_vars, const vector<vars_t> &used_vars, bool final_clause);
+	void ground_dnf(const vector<vector<pair<Clingo::Symbol, Clingo::Symbol>>> &invs, const vector<vars_t> &exists_vars);
+	void set_clause_setting(int num_exists, int len, vars_t vars);
+	void set_dnf_setting(vector<int>& formula_size);
+	bool check_invariant(const vars_t& vars, const qalter_t& qalter, const inv_t &candidate_inv); //opt: use the queue to parallelise
+	void from_csv_to_predicates(vector<string> &predicates);
+	int get_predicates_index(const vars_t& vars, const int& idx);
+
 
 
 protected:  // visible to derived class InvRefiner
@@ -60,7 +91,7 @@ protected:  // visible to derived class InvRefiner
 	InvEncoder encoder;
 	Config config;
 	vars_t template_sizes;
-	vector<vars_t> vars_traversal_order;
+	vector<vars_t> vars_traversal_order;//TODO: what is the one_to_one_exists?
 	map<vars_t, vector<string>> predicates_dict;
 	map<inst_t, vector<string>> inst_predicates_dict;
 	// nested array, dimensions are 1) type index, 2) number of quantified variables of this type, 3) instance size at this type, 4) unique/ordered
@@ -75,6 +106,7 @@ protected:  // visible to derived class InvRefiner
 	map<vars_t, map<string, int>> p_to_idx_dict;
 	// invs_dict: key: subtemplate; value: checked invariants
 	map<vars_t, map<qalter_t, inv_set_t>> invs_dict;
+	vector<tuple<vars_t, qalter_t, string>> solver_more_invs;
 	int check_if_inv_on_csv(const vars_t& vars, const qalter_t& qalter, const inst_t& inst, const inv_t& candidate_inv, const DataMatrix& data_mat, const map<vector<int>, vector<int>>& one_column_indices_dict) const;
 	void add_permuted_candidates(inv_set_t& formula_set, const vars_t& vars, const vector<bool>& is_unique_ordered, const inv_t& candidate_inv);
 	void calc_deuniqued_invs(const vars_t& vars, const qalter_t& qalter, vector<inv_set_t>& deuniqued_invs); //TODO: by ASP or?

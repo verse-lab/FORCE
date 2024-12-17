@@ -676,3 +676,146 @@ void StringProcessor::add_checked_invs(vector<tuple<vars_t, qalter_t, string>>& 
 		output_vec_invs.push_back({ vars, qalter, inv_str });
 	}
 }
+
+void StringProcessor::from_config_to_predicates(vector<string> &predicates, map<int, string> &var_to_type)
+{
+	map<string, vector<int>> type_to_vars;
+	// set<string> po_types;
+
+	vector<vector<int>> subst_vec;
+	// vector<vector<int>> subst_vec, var_vec;
+	for (auto const &type : config.total_ordered_types)
+	{
+		auto type_name = config.type_order[type.first];
+		predicates.push_back("to_type(" + type_name + ").");
+		// po_types.insert(type_name);
+	}
+	for (auto type_num{0}; auto const &type_name : config.type_order)
+	{
+		for (auto const &var_name : config.template_vars_map.at(type_name))
+		{
+			auto tmp = "var_type(" + std::to_string(type_num) + "," + type_name + ").";
+			type_to_vars[type_name].push_back(type_num);
+			var_to_type[type_num] = type_name;
+			type_num++;
+			predicates.push_back(tmp);
+		}
+		if (config.template_vars_map.at(type_name).size() == 1)
+		{
+			subst_vec.push_back(vector<int>{0});
+			// var_vec.push_back(vector<int>{1});
+			predicates.push_back("possible_type_num(" + type_name + "," + "1).");
+		}
+		else if (config.template_vars_map.at(type_name).size() == 2)
+		{
+			// if(po_types.find(type_name) != po_types.end()){
+			// 	subst_vec.push_back(vector<int>{0});
+			// }
+			// else{
+			// 	subst_vec.push_back(vector<int>{0, 1});
+			// }
+			subst_vec.push_back(vector<int>{0, 1});
+			// var_vec.push_back(vector<int>{1, 2});
+			predicates.push_back("possible_type_num(" + type_name + "," + "1;" + type_name + ",2).");
+		}
+		else
+		{
+			std::cerr << "TODO: handle orbits of more than 2 variables in a type" << endl;
+			assert(false);
+		}
+	}
+	auto all_subst = cart_product(subst_vec);
+	// vars_traversal_order = cart_product(var_vec);
+	map<vector<int>, map<int, int>> var_subst;
+	for (auto &subst : all_subst)
+	{
+		var_subst[subst] = map<int, int>();
+		for (auto i{0}; i < subst.size(); i++)
+		{
+			auto &vars = type_to_vars[config.type_order[i]];
+			if (subst[i] == 1)
+			{
+				var_subst[subst][vars[0]] = vars[1];
+				var_subst[subst][vars[1]] = vars[0];
+			}
+			else
+			{
+				var_subst[subst][vars[0]] = vars[0];
+			}
+		}
+	}
+	map<vector<int>, map<vector<int>, vector<int>>> subst_to_vars;
+	// int no{0};
+	for (auto &rel : config.relations)
+	{
+		string rel_name = rel.first;
+		vector<vector<int>> to_be_producted;
+		vector<int> rel_signature = rel.second;
+		for (auto const type_index : rel_signature)
+		{
+			to_be_producted.push_back(type_to_vars[config.type_order[type_index]]);
+		}
+		auto product = cart_product(to_be_producted);
+		for (auto const &prod : product)
+		{
+			if (!subst_to_vars.contains(prod))
+			{
+				for (auto const &subst : all_subst)
+				{
+					auto out = prod;
+					for (auto j{0}; j < out.size(); j++)
+					{
+						auto type_name = var_to_type[out[j]];
+						if (subst[config.type_name_to_index.at(type_name)] == 1)
+						{
+							auto vars = type_to_vars[type_name];
+							assert(vars.size() == 2);
+							auto changed = vars[0] == out[j] ? vars[1] : vars[0];
+							out[j] = changed;
+						}
+					}
+					subst_to_vars[prod][subst] = out;
+				}
+			}
+			// string tmp = "pred_vars_no(" +std::to_string(no++)+"," + rel_name + ", ";
+			// tmp += vec_to_tuple(prod) + ").";
+
+			// tmp += ")) :- ";
+			// set<int> tmp_set(prod.begin(), prod.end());
+			// for(auto const& var: tmp_set)
+			// {
+			// 	tmp += "valid_var(" + std::to_string(var) + "),";
+			// }
+			// tmp.pop_back();
+			// tmp += ".";
+			// predicates.push_back(tmp);
+		}
+	}
+	// lit_num = no;
+
+	for (auto const &subst : all_subst)
+	{
+		auto sum = std::accumulate(subst.begin(), subst.end(), 0);
+		string tmp = "all_subst(" + vec_to_tuple(subst) + ").\n" + "all_subst_sum(" + vec_to_tuple(subst) + "," + std::to_string(sum) + ").\n";
+		// cout<<tmp<<endl;
+		predicates.push_back(tmp);
+	}
+	for (auto const &[subst, var_pairs] : var_subst)
+	{
+		for (auto const &[var, subst_var] : var_pairs)
+		{
+			string tmp = "var_subst(" + vec_to_tuple(subst) + "," + std::to_string(var) + "," + std::to_string(subst_var) + ").";
+			// cout<<tmp<<endl;
+			predicates.push_back(tmp);
+		}
+	}
+	for (auto const &[prod, subst_to_out] : subst_to_vars)
+	{
+		for (auto const &[subst, out] : subst_to_out)
+		{
+			string tmp = "subst(" + vec_to_tuple(prod) + "," + vec_to_tuple(out) + "," + vec_to_tuple(subst) + ").";
+			// cout<<tmp<<endl;
+			predicates.push_back(tmp);
+		}
+	}
+}
