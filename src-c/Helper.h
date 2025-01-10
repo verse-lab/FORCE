@@ -11,10 +11,10 @@ private:
 	const StringProcessor& processor;
 public:
 	Helper(const Config& config_, const StringProcessor& processor_) : config(config_), processor(processor_) {}
-	void extract_exists_vars(const vars_t& vars, const qalter_t& qalter, map<int, int>& exists_type_to_varnum_map, vector<int>& exists_type_list, vector<string>& exists_vars, vector<int>& leading_forall_vars);
+	void extract_exists_vars(const vars_t& vars, const qalter_t& qalter, map<int, int>& exists_type_to_varnum_map, vector<int>& exists_type_list, vector<string>& exists_vars, vector<int>& leading_forall_vars, vector<string>& not_leading_forall_vars);
 	bool bfs_check_connectivity(const vector<set<int>>& edges, const clause_t& candidate_clause, vector<clause_t>& connected_components);
 	void calc_anded_clauses(int number_predicates, const map<string, vector<int>>& var_in_p, const vector<string>& exists_vars, vector<vector<clause_t>>& anded_clauses, vector<map<clause_t, vector<clause_t>>>& connected_components_dicts);
-	void calc_anded_clauses_fixed(int number_predicates, const map<string, vector<int>>& var_in_p, const vector<string>& exists_vars, vector<vector<clause_t>>& anded_clauses, vector<map<clause_t, vector<clause_t>>>& connected_components_dicts);
+	void calc_anded_clauses_fixed(int number_predicates, const map<string, vector<int>>& var_in_p, const vector<string> forall_leading_vars, const vector<string>& exists_vars, vector<vector<clause_t>>& anded_clauses, vector<map<clause_t, vector<clause_t>>>& connected_components_dicts);
 	void calc_vars_mapping(int type_index, int in_num, int out_num, bool is_unique_ordered, vector<map<string, string>>& vars_mappings);
 	void calc_vars_self_mapping(int in_num, int out_num, vector<vector<int>>& vars_mappings);
 	void update_base_implied_formulas_each_clause(const inv_t& base_inv, int number_predicates, unordered_map<clause_t, unordered_set<vector<int>, VectorHash>, VectorHash>& base_implied_formulas_each_clause) const;

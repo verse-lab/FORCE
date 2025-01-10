@@ -4,11 +4,15 @@
 #include "utils.lp".
 #include "../redundant/clause_level.lp".
 #include "../incremental/clause.lp".
+#include "DuoAI.lp".
+#include "flyvy.lp".
 % #include "tmp.lp".
-#const length = 3.
+#const length = 4.
 
 #external my_length(1..length).
-:- #count{Pred,Vars,Pos:output(Pred,Vars,Pos)}!=L, my_length(L).
+:- #count{Pred,Vars,Pos:output(Pred,Vars,Pos)}!=L, my_length(L), not flyvy.
+
+duoai.
 
 pos(0;1).
 #show output/3.
@@ -37,16 +41,12 @@ var_used(Var):-var_used_time(Var,Times),Times>0.
 var_used_more(Var):-var_used_time(Var,Times),Times>1.
 #show var_used/1.
 
-% #external duoai.
-duoai.
+one_to_one:-my_length(2),exists_length(0).
+to_more:-to_type(T),var_used(Var1),var_type(Var1,T),var_used(Var2),var_type(Var2,T),Var1<Var2.
 
-max_pos_exists(3):-duoai.
-:- max_pos_exists(Max), exists(Var0), var_type(Var0,Type0), #count{Type:var_type(Var,Type), Var>Var0, Type!=Type0}>=Max.
+one2one(2*No1_new+(1-Pos1),2*No2_new+Pos2):- one_to_one, output_no(No1,Pos1),output_no(No2,Pos2),No1!=No2, atom_subst(No1,No1_new,St),atom_subst(No2,No2_new,St), not to_more.
+one2one(2*No1_new+(1-Pos1),2*No2_new+Pos2):- one_to_one, output_no(No1,Pos1),output_no(No2,Pos2),No1!=No2, atom_subst(No1,No1_new,St),atom_subst(No2,No2_new,St), to_more, not to_subst(St).
 
+#show one2one/2.
 
-% subtemplate(Var1,Var2):-var_used(Var1),var_used(Var2),Var1<Var2,duoai, var_type(Var1,Type),var_type(Var2,Type), not exists(Var1),not exists(Var2).
-% #show subtemplate/2.
-
-
-% #program dynamic_vars(r,v,q,n).
 

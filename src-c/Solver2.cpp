@@ -1,6 +1,184 @@
 #include "Solver2.h"
 
-Solver::Solver(string problem, int template_increase, int num_attempt, bool is_forall_only) : processor(config), helper(config, processor), encoder(config, processor),solve_timer("solve"),ground_timer("ground"),other_timer("other"), init_dnf(false)
+
+bool FO_Propagator::check_assignment(const Clingo::Assignment &assignment)
+{
+    // cout<<"checking"<<endl;
+    vars_t vars(config.type_order.size());
+    inv_t candidate_inv;
+    inv_lit_t inv_lit;
+    qalter_t qalter;
+    qalter.resize(config.type_order.size());
+
+    for (auto const &[lit, aspvar] : lit_to_aspvar)
+    {
+        if (assignment.is_true(lit))
+        {
+            vars.at(config.type_name_to_index.at(var_to_type.at(aspvar)))++;
+        }
+    }
+    for (auto &var : vars)
+    {
+        if (var == 0)
+            var++;
+    }
+    bool o2o_check=one2one.size()>0;
+    if(!dnf){
+        for (auto const &[lit, asplit] : lit_to_aspoutno)
+        {
+            if (assignment.is_true(lit))
+            {
+                // cout<<"asplit: "<<asplit.first<<" "<<asplit.second<<endl;
+                // temp.insert(asplit);
+                candidate_inv.insert({csv_reader.get_pred_idx(vars, asplit.first) + (1 - asplit.second) * int(csv_reader.inst_predicates_dict.at(vars).size())});
+                if(o2o_check)inv_lit.insert({2*asplit.first+ asplit.second});
+                
+            }
+        }
+    }
+    else{
+        vector<vector<int>> invs;
+        vector<set<int>> tmp_lit;
+        for (auto const &[lit, asplit] : lit_to_aspoutno)
+        {
+            if (assignment.is_true(lit))
+            {
+                if(invs.size()<asplit.first)invs.resize(asplit.first);
+                if(tmp_lit.size()<asplit.first)tmp_lit.resize(asplit.first);
+                auto fst = asplit.second/2;
+                auto snd = asplit.second%2;
+                invs[asplit.first-1].push_back(csv_reader.get_pred_idx(vars, fst) + (1 - snd) * int(csv_reader.inst_predicates_dict.at(vars).size()));
+                tmp_lit[asplit.first-1].insert(asplit.second);
+            }
+        }
+        for(auto &inv:invs){
+            if(inv.size()==0) std::cerr<<"Error: empty inv"<<std::endl;
+            candidate_inv.insert(inv);
+        }
+        for(auto &lit:tmp_lit){
+            inv_lit.insert(lit);
+        }
+    }
+    for (auto const &[lit, aspexists] : lit_to_aspexists)
+    {
+        if (assignment.is_true(lit))
+        {
+            qalter.at(config.type_name_to_index.at(var_to_type.at(aspexists))) = true;
+        }
+    }
+    if(O2O){// TODO: clause can also be optimised
+        if(dnf){
+            if(checked.find(qalter) == checked.end()) checked[qalter] = set<inv_lit_t>();
+            auto& checked_qalter = checked[qalter];
+            if(checked_qalter.find(inv_lit) != checked_qalter.end()){
+                cout<<"hhh"<<endl;
+                return true;
+            }
+            bool ret = csv_reader.check_invariant(vars, qalter, candidate_inv);
+            if(ret){
+                checked_qalter.insert(inv_lit);
+                // if literal is in one2one, then we can add the corresponding inv to checked
+                for(auto const &cube:inv_lit){
+                    auto tmp_inv = inv_lit;
+                    tmp_inv.erase(cube); // to add modified cube
+                    for(auto const &lit:cube){
+                        if(one2one.find(lit) != one2one.end()){
+                            for(auto const &lit2:one2one[lit]){
+                                auto tmp_cube = cube;
+                                tmp_cube.erase(lit);
+                                tmp_cube.insert(lit2);
+                                auto tmp_inv2 = tmp_inv;
+                                tmp_inv2.insert(tmp_cube);
+                                checked_qalter.insert(tmp_inv2);
+                            }
+                        }
+                    }
+                }
+            }
+            return ret;
+        }
+        else{
+            if(o2o_check){
+                if(checked.find(qalter) == checked.end()) checked[qalter] = set<inv_lit_t>();
+                auto& checked_qalter = checked[qalter];
+                // cout<<"current inv:"<<endl;
+                // for(auto &lit : inv_lit){
+                //     cout<<"lit: "<<vec_to_str(vector<int>(lit.begin(),lit.end()))<<endl;
+                // }
+                if(checked_qalter.find(inv_lit) != checked_qalter.end()){
+                    cout<<"hh"<<endl;
+                    return true;
+                }
+                bool ret = csv_reader.check_invariant(vars, qalter, candidate_inv);
+                if(ret){
+                    checked_qalter.insert(inv_lit);
+                    // if literal is in one2one, then we can add the corresponding inv to checked
+                    for(auto const &cube:inv_lit){
+                        auto tmp_inv = inv_lit;
+                        tmp_inv.erase(cube); // to add modified cube
+                        for(auto const &lit:cube){
+                            if(one2one.find(lit) != one2one.end()){
+                                for(auto const &lit2:one2one[lit]){
+                                    auto tmp_cube = cube;
+                                    tmp_cube.erase(lit);
+                                    tmp_cube.insert(lit2);
+                                    auto tmp_inv2 = tmp_inv;
+                                    tmp_inv2.insert(tmp_cube);
+                                    checked_qalter.insert(tmp_inv2);
+                                    // cout<<"inserted: "<<endl;
+                                    // for(auto &lit : tmp_inv2){
+                                    //     cout<<"lit: "<<vec_to_str(vector<int>(lit.begin(),lit.end()))<<endl;
+                                    // }
+                                }
+                            }
+                        }
+                    }
+                }
+                return ret;
+            }
+            return csv_reader.check_invariant(vars, qalter, candidate_inv);
+        }
+    }
+    return csv_reader.check_invariant(vars, qalter, candidate_inv);
+}
+
+void FO_Propagator::init(Clingo::PropagateInit &init)
+{
+    // if(dnf) return;
+    for (auto &atom : init.symbolic_atoms())
+    {
+        if (string(atom.symbol().name()) == "output_no")
+        {
+            lit_to_aspoutno[init.solver_literal(atom.literal())] = pair<int, int>(atom.symbol().arguments()[0].number(), atom.symbol().arguments()[1].number());
+        }
+        else if (string(atom.symbol().name()) == "var_used")
+        {
+            lit_to_aspvar[init.solver_literal(atom.literal())] = atom.symbol().arguments()[0].number();
+        }
+        else if (string(atom.symbol().name()) == "exists")
+        {
+            lit_to_aspexists[init.solver_literal(atom.literal())] = atom.symbol().arguments()[0].number();
+        }
+    }
+}
+
+void FO_Propagator::check(Clingo::PropagateControl &control)
+{
+    // if(dnf) return;
+    auto assignment = control.assignment();
+    vector<Clingo::literal_t> conflicts;
+    if (!check_assignment(assignment))
+    {
+        for (auto level = 0; level < assignment.decision_level() + 1; level++)
+        {
+            conflicts.push_back(-assignment.decision(level));
+        }
+        control.add_clause(conflicts);
+    }
+}
+
+
+Solver::Solver(string problem, int template_increase, int num_attempt, bool is_forall_only) : processor(config), helper(config, processor), encoder(config, processor),solve_timer("solve"),ground_timer("ground"),other_timer("other"), init_dnf(false),clause_propagator(*this,config,false),dnf_propagator(*this,config,true)
 {
 	problem_name = problem;
 	template_increase_times = template_increase;
@@ -700,7 +878,7 @@ void Solver::from_csv_to_predicates(vector<string> &predicates)
 	}
 }
 
-int Solver::get_predicates_index(const vars_t &vars, const int &idx)
+int Solver::get_pred_idx(const vars_t &vars, const int &idx)
 {
 	// cout<<vec_to_str(vars)<<endl;
 	if (pred_idx.find(vars) == pred_idx.end())
@@ -1124,9 +1302,9 @@ void Solver::auto_solve()
 	// 		}
 	// 	}
 	// }
-	prepare_clingo({"0"});
+	prepare_clingo({"-t6","0"}); //warning: the number of threads is set to 6
 	clause_search();
-	dnf_search();
+	dnf_search();//opt: grouping and parallel
 	
 	cout << "Invariant enumeration finished" << endl;
 }
@@ -1142,6 +1320,8 @@ void Solver::prepare_clingo(Clingo::StringSpan args)
 {
 	vector<string> aux,lits;
 	processor.from_config_to_predicates(aux, var_to_type);
+	clause_propagator.assign_var_to_type(var_to_type);
+    dnf_propagator.assign_var_to_type(var_to_type);
 	from_csv_to_predicates(lits);
 	lit_num = lits.size();
 	cube_num = 2*(lit_num+1);
@@ -1160,6 +1340,7 @@ void Solver::prepare_clingo(Clingo::StringSpan args)
 		dnf.add("base", {}, pred.c_str());
 	}
 	clause.load("../components_asp/language/clause.lp");
+	clause.register_propagator(clause_propagator);
 	clause.ground({{"base", {}}});
 	dnf.load("../components_asp/language/formula.lp");
 	split_n_into_k_numbers_bulk(config.max_literal, config.max_ored_clauses, config.max_anded_literals, n_into_k);
@@ -1176,10 +1357,15 @@ void Solver::prepare_clingo(Clingo::StringSpan args)
 
 void Solver::clause_search()
 {
+	bool o2o_flag = false;
 	for (auto num_exists = 0; num_exists <= config.max_exists; num_exists++)
 	{
 		for (auto len = 1; len <= config.max_ored_clauses; len++)
 		{
+			if(!o2o_flag && len==3){
+				o2o_flag = true;
+				clause_propagator.assign_one2one(o2o);
+			}
 			for (auto it = vars_traversal_order.begin(); it != vars_traversal_order.end(); it++)
 			{
 				// for(auto &vars:vars_traversal_order){
@@ -1195,33 +1381,25 @@ void Solver::clause_search()
 				solve_timer.stop();
 				for (auto &&m : solved)
 				{ // OPT: queue for model checking instead of propagator
-					// std::cout << "Model" << cnt_correct++ << ":";
-					// for (auto &atom : m.symbols(Clingo::ShowType::Shown))
-					// {
-					// 	std::cout << " " << atom;
-					// }
-					// cout << "what?" << endl;
+					std::cout << "Model" << cnt_correct++ << ":";
+					for (auto &atom : m.symbols(Clingo::ShowType::Shown))
+					{
+						std::cout << " " << atom;
+					}
+					cout << endl;
 					vector<pair<Clingo::Symbol, Clingo::Symbol>> inv;
 					vars_t used_var;
 					vars_t exist_var; // TODO: deal with more than one exists
-					bool is_inv=model_to_clause(m.symbols(Clingo::ShowType::Shown), used_var, inv, exist_var);
-					if(is_inv){
-						used_vars.push_back(used_var);
-						invs.push_back(inv);
-						exists_vars.push_back(exist_var); // OPT: input the vector instead
-						std::cout << "Model" << cnt_correct++ << ":";
-						for (auto &atom : m.symbols(Clingo::ShowType::Shown))
-						{
-							std::cout << " " << atom;
-						}
-						cout<<endl;
-					}
+					model_to_formula(m.symbols(Clingo::ShowType::Shown), used_var, inv, exist_var);
+					used_vars.push_back(used_var);
+					invs.push_back(inv);
+					exists_vars.push_back(exist_var); // OPT: input the vector instead
 				}
 				other_timer.start();
 				if (len != config.max_ored_clauses || num_exists != config.max_exists || it != vars_traversal_order.end() - 1)
-					ground_clause(invs, exists_vars, used_vars, false);
+					ground_invs_clause(invs, exists_vars, used_vars, false);
 				else
-					ground_clause(invs, exists_vars, used_vars, true);
+					ground_invs_clause(invs, exists_vars, used_vars, true);
 				other_timer.stop();
 				// correct_invs.insert(correct_invs.end(), invs.begin(), invs.end());
 			}
@@ -1231,8 +1409,9 @@ void Solver::clause_search()
 
 void Solver::dnf_search()
 {
-	cout<<"dnf_search"<<endl;
 	int cnt{0};
+	if(O2O)dnf_propagator.assign_one2one(o2o);
+    dnf.register_propagator(dnf_propagator);
 	dnf.ground({{"base", {}}});
 	for (int num_or = 1; num_or <= config.max_ored_clauses; num_or++)
 	{
@@ -1246,27 +1425,30 @@ void Solver::dnf_search()
 				auto solved = dnf.solve();
 				for (auto &&m : solved)
 				{
-					// std::cout << "Model" << cnt++ << ":";
-					// for (auto &atom : m.symbols(Clingo::ShowType::Shown))
-					// {
-					// 	std::cout << " " << atom;
-					// }
-					// std::cout << "\n";
+					std::cout << "Model" << cnt++ << ":";
+					for (auto &atom : m.symbols(Clingo::ShowType::Shown))
+					{
+						std::cout << " " << atom;
+					}
+					std::cout << "\n";
 					vector<pair<Clingo::Symbol, Clingo::Symbol>> inv;
 					inv_t candidate_inv;
 					vars_t used_var;
 					vars_t exist_var; // TODO: deal with more than one exists
-					bool is_inv=model_to_formula(m.symbols(Clingo::ShowType::Shown), used_var, inv, exist_var);
-					if(is_inv){
-						invs.push_back(inv);
-						exists_vars.push_back(exist_var);
-						std::cout << "Model" << cnt++ << ":";
-						for (auto &atom : m.symbols(Clingo::ShowType::Shown))
-						{
-							std::cout << " " << atom;
-						}
-						std::cout << "\n";
-					}
+					model_to_formula(m.symbols(Clingo::ShowType::Shown), used_var, inv, exist_var);
+					invs.push_back(inv);
+					// used_vars.push_back(used_var);
+					exists_vars.push_back(exist_var);
+					// if(is_inv){
+					// 	invs.push_back(inv);
+					// 	exists_vars.push_back(exist_var);
+					// 	std::cout << "Model" << cnt++ << ":";
+					// 	for (auto &atom : m.symbols(Clingo::ShowType::Shown))
+					// 	{
+					// 		std::cout << " " << atom;
+					// 	}
+					// 	std::cout << "\n";
+					// }
 
 				}
 				if(num_or!=config.max_ored_clauses) ground_dnf(invs, exists_vars);
@@ -1275,13 +1457,9 @@ void Solver::dnf_search()
 	}
 }
 
-bool Solver::model_to_formula(const Clingo::SymbolVector &formula, vars_t &vars, vector<pair<Clingo::Symbol, Clingo::Symbol>> &inv, vars_t &exist_vars)
+void Solver::model_to_formula(const Clingo::SymbolVector &formula, vars_t &vars, vector<pair<Clingo::Symbol, Clingo::Symbol>> &inv, vars_t &exist_vars)
 {
 	assert(vars.empty());
-	vars_t outvars(config.type_order.size());
-    inv_t candidate_inv;
-    qalter_t qalter;
-	qalter.resize(config.type_order.size());
 	for (auto const &atom : formula)
 	{
 		if (string(atom.name()) == "output_no")
@@ -1290,157 +1468,114 @@ bool Solver::model_to_formula(const Clingo::SymbolVector &formula, vars_t &vars,
 		}
 		else if (string(atom.name()) == "var_used")
 		{
+			// vars.at(config.type_name_to_index.at(var_to_type.at(atom.arguments()[0].number())))++;
 			vars.push_back(atom.arguments()[0].number());
-			outvars.at(config.type_name_to_index.at(var_to_type.at(atom.arguments()[0].number())))++;
 		}
 		else if (string(atom.name()) == "exists")
 		{
 			exist_vars.push_back(atom.arguments()[0].number());
-			qalter.at(config.type_name_to_index.at(var_to_type.at(atom.arguments()[0].number()))) = true;
+		}
+		else if (string(atom.name()) == "one2one")
+		{
+			if(O2O){
+				if(o2o.find(atom.arguments()[0].number()) == o2o.end()){
+					o2o[atom.arguments()[0].number()] = set<int>();
+				}
+				o2o[atom.arguments()[0].number()].insert(atom.arguments()[1].number());
+			}
+			
 		}
 	}
-	for (auto &var : outvars)
-    {
-        if (var == 0)
-            var++;
-    }
-	vector<vector<int>> invs;
-	for(auto &lit:inv){
-		if(invs.size()<lit.first.number()){invs.resize(lit.first.number());}
-		auto fst = lit.second.number()/2;
-		auto snd = lit.second.number()%2;
-		invs.at(lit.first.number()-1).push_back(get_predicates_index(outvars, fst)+(1-snd)*int(inst_predicates_dict.at(outvars).size()));
-	}
-	for(auto &clause:invs){
-		candidate_inv.insert(clause);
-	}
-	return check_invariant(outvars, qalter, candidate_inv);
 }
 
-bool Solver::model_to_clause(const Clingo::SymbolVector &formula, vars_t &vars, vector<pair<Clingo::Symbol, Clingo::Symbol>> &inv, vars_t &exist_vars)
-{
-	assert(vars.empty());
-	vars_t outvars(config.type_order.size());
-    inv_t candidate_inv;
-    qalter_t qalter;
-	qalter.resize(config.type_order.size());
-	for (auto const &atom : formula)
-	{
-		if (string(atom.name()) == "output_no")
-		{
-			inv.push_back({atom.arguments()[0], atom.arguments()[1]});
-		}
-		else if (string(atom.name()) == "var_used")
-		{
-			vars.push_back(atom.arguments()[0].number());
-			outvars.at(config.type_name_to_index.at(var_to_type.at(atom.arguments()[0].number())))++;
-		}
-		else if (string(atom.name()) == "exists")
-		{
-			exist_vars.push_back(atom.arguments()[0].number());
-			qalter.at(config.type_name_to_index.at(var_to_type.at(atom.arguments()[0].number()))) = true;
-		}
-	}
-	for (auto &var : outvars)
-    {
-        if (var == 0)
-            var++;
-    }
-	for(auto &lit:inv){
-		candidate_inv.insert({get_predicates_index(outvars, lit.first.number())+(1-lit.second.number())*int(inst_predicates_dict.at(outvars).size())});
-	}
-	// cout<<vec_to_str(outvars)<<endl;
-	// cout<<vec_to_str(qalter)<<endl;
-	// for(auto &lit:candidate_inv){
-	// 	cout<<vec_to_str(lit)<<endl;
-	// }
-	return check_invariant(outvars, qalter, candidate_inv);
-}
+// void Solver::model_to_clause(const Clingo::SymbolVector &formula, vars_t &vars, vector<pair<Clingo::Symbol, Clingo::Symbol>> &inv, vars_t &exist_vars)
+// {
+// 	assert(vars.empty());
+// 	vars_t outvars(config.type_order.size());
+//     inv_t candidate_inv;
+//     qalter_t qalter;
+// 	qalter.resize(config.type_order.size());
+// 	for (auto const &atom : formula)
+// 	{
+// 		if (string(atom.name()) == "output_no")
+// 		{
+// 			inv.push_back({atom.arguments()[0], atom.arguments()[1]});
+// 		}
+// 		else if (string(atom.name()) == "var_used")
+// 		{
+// 			vars.push_back(atom.arguments()[0].number());
+// 			outvars.at(config.type_name_to_index.at(var_to_type.at(atom.arguments()[0].number())))++;
+// 		}
+// 		else if (string(atom.name()) == "exists")
+// 		{
+// 			exist_vars.push_back(atom.arguments()[0].number());
+// 			qalter.at(config.type_name_to_index.at(var_to_type.at(atom.arguments()[0].number()))) = true;
+// 		}
+// 	}
+// 	for (auto &var : outvars)
+//     {
+//         if (var == 0)
+//             var++;
+//     }
+// 	for(auto &lit:inv){
+// 		candidate_inv.insert({get_predicates_index(outvars, lit.first.number())+(1-lit.second.number())*int(inst_predicates_dict.at(outvars).size())});
+// 	}
+// 	// cout<<vec_to_str(outvars)<<endl;
+// 	// cout<<vec_to_str(qalter)<<endl;
+// 	// for(auto &lit:candidate_inv){
+// 	// 	cout<<vec_to_str(lit)<<endl;
+// 	// }
+// 	return check_invariant(outvars, qalter, candidate_inv);
+// }
 
-void Solver::ground_clause(const vector<vector<pair<Clingo::Symbol, Clingo::Symbol>>> &invs, const vector<vars_t> &exists_vars, const vector<vars_t> &used_vars, bool final_clause)
+void Solver::ground_invs_clause(const vector<vector<pair<Clingo::Symbol, Clingo::Symbol>>> &invs, const vector<vars_t> &exists_vars, const vector<vars_t> &used_vars, bool final_clause)
 {
-	// opt: change to PartSpan
 	ground_timer.start();
 	for (int i{0}; i < invs.size(); i++)
 	{
-		if (invs.at(i).size() == 1)
-		{
-			if (exists_vars.at(i).size() == 1)
-			{
-				string s = "rule(" + std::to_string(current_grounded) + "," + std::to_string(invs.at(i)[0].first.number() * 2 + invs.at(i)[0].second.number()) + ").\n";
-				for (auto const &var : used_vars.at(i))
-				{
-					s += "rule_used(" + std::to_string(current_grounded) + "," + std::to_string(var) + ").\n";
-				}
-				s += "rule_varnum(" + std::to_string(current_grounded) + "," + std::to_string(used_vars.at(i).size()) + ").\n";
-				clause.ground({{"correct_inv1_exi", {Clingo::Number(current_grounded), invs.at(i)[0].first, invs.at(i)[0].second, Clingo::Number(exists_vars.at(i)[0])}}});
-				s += "rule_exists(" + std::to_string(current_grounded) + "," + std::to_string(exists_vars.at(i)[0]) + ").\n";
-				s += "rule_len(" + std::to_string(current_grounded) + "," + std::to_string(1) + ").\n";
-				dnf.add("base", {}, s.c_str());
-			}
-			else
-			{
-				std::cerr << "Error: exists_vars size is not 1" << std::endl;
-			}
-		}
-		else if (invs.at(i).size() == 2)
-		{
-			auto &atom1 = invs.at(i)[0];
-			auto &atom2 = invs.at(i)[1];
-			string s = "rule(" + std::to_string(current_grounded) + "," + std::to_string(atom1.first.number() * 2 + atom1.second.number()) + ").\n";
-			s += "rule(" + std::to_string(current_grounded) + "," + std::to_string(atom2.first.number() * 2 + atom2.second.number()) + ").\n";
+		if(exists_vars.at(i).size()==0){
+			clause.ground({{"correct_inv", {Clingo::Number(current_grounded), Clingo::Number((int)invs.at(i).size())}}});
+			string s;
 			for (auto const &var : used_vars.at(i))
 			{
 				s += "rule_used(" + std::to_string(current_grounded) + "," + std::to_string(var) + ").\n";
 			}
-			s += "rule_varnum(" + std::to_string(current_grounded) + "," + std::to_string(used_vars.at(i).size()) + ").\n";
-			s += "rule_len(" + std::to_string(current_grounded) + "," + std::to_string(2) + ").\n";
-			if (exists_vars.at(i).size() == 1)
+			s+="rule_varnum(" + std::to_string(current_grounded) + "," + std::to_string(used_vars.at(i).size()) + ").\n";
+			for (auto const &atom : invs.at(i))
 			{
-
-				clause.ground({{"correct_inv2_exi", {Clingo::Number(current_grounded), invs.at(i)[0].first, invs.at(i)[0].second, invs.at(i)[1].first, invs.at(i)[1].second, Clingo::Number(exists_vars.at(i)[0])}}});
-				s += "rule_exists(" + std::to_string(current_grounded) + "," + std::to_string(exists_vars.at(i)[0]) + ").\n";
-				dnf.add("base", {}, s.c_str());
+				s += "rule(" + std::to_string(current_grounded) + "," + std::to_string(atom.first.number() * 2 + atom.second.number()) + ").\n";
+				clause.assign_external(Clingo::Function("correct_lit", {Clingo::Number(current_grounded), atom.first, atom.second}), Clingo::TruthValue::True);
 			}
-			else
-			{
-				assert(exists_vars.at(i).size() == 0);
-				clause.ground({{"correct_inv2", {Clingo::Number(current_grounded), invs.at(i)[0].first, invs.at(i)[0].second, invs.at(i)[1].first, invs.at(i)[1].second}}});
-				s += "forall_rule(" + std::to_string(current_grounded) + ").\n";
-				dnf.add("base", {}, s.c_str());
-			}
+			s += "rule_len(" + std::to_string(current_grounded) + "," + std::to_string(invs.at(i).size()) + ").\n";
+			s+="forall_rule(" + std::to_string(current_grounded) + ").\n";
+			if(DEBUG) cout<<s<<endl;
+			dnf.add("base", {}, s.c_str());
 		}
-		else if (invs.at(i).size() == 3)
-		{
-			auto &atom1 = invs.at(i)[0];
-			auto &atom2 = invs.at(i)[1];
-			auto &atom3 = invs.at(i)[2];
-			string s = "rule(" + std::to_string(current_grounded) + "," + std::to_string(atom1.first.number() * 2 + atom1.second.number()) + ").\n";
-			s += "rule(" + std::to_string(current_grounded) + "," + std::to_string(atom2.first.number() * 2 + atom2.second.number()) + ").\n";
-			s += "rule(" + std::to_string(current_grounded) + "," + std::to_string(atom3.first.number() * 2 + atom3.second.number()) + ").\n";
+		else{
+			if (!final_clause) clause.ground({{"correct_inv_exi", {Clingo::Number(current_grounded), Clingo::Number((int)invs.at(i).size()), Clingo::Number(int(exists_vars.at(i).size()))}}});
+			string s;
 			for (auto const &var : used_vars.at(i))
 			{
 				s += "rule_used(" + std::to_string(current_grounded) + "," + std::to_string(var) + ").\n";
 			}
-			s += "rule_varnum(" + std::to_string(current_grounded) + "," + std::to_string(used_vars.at(i).size()) + ").\n";
-			s += "rule_len(" + std::to_string(current_grounded) + "," + std::to_string(3) + ").\n";
-
-			if (!exists_vars.at(i).empty())
+			s+="rule_varnum(" + std::to_string(current_grounded) + "," + std::to_string(used_vars.at(i).size()) + ").\n";
+			for (auto const &atom : invs.at(i))
 			{
-				s += "rule_exists(" + std::to_string(current_grounded) + "," + std::to_string(exists_vars.at(i)[0]) + ").\n";
-				dnf.add("base", {}, s.c_str());
+				s += "rule(" + std::to_string(current_grounded) + "," + std::to_string(atom.first.number() * 2 + atom.second.number()) + ").\n";
+				clause.assign_external(Clingo::Function("correct_lit", {Clingo::Number(current_grounded), atom.first, atom.second}), Clingo::TruthValue::True);
 			}
-			else
+			s += "rule_len(" + std::to_string(current_grounded) + "," + std::to_string(invs.at(i).size()) + ").\n";
+			for (auto const &var : exists_vars.at(i))
 			{
-				s += "forall_rule(" + std::to_string(current_grounded) + ").\n";
-				dnf.add("base", {}, s.c_str());
+				s += "rule_exists(" + std::to_string(current_grounded) + "," + std::to_string(var) + ").\n";
+				if (!final_clause) clause.assign_external(Clingo::Function("exi", {Clingo::Number(current_grounded), Clingo::Number(var)}), Clingo::TruthValue::True);
 			}
-			if (!final_clause)
-			{
-				clause.ground({{"correct_inv3", {Clingo::Number(current_grounded), invs.at(i)[0].first, invs.at(i)[0].second, invs.at(i)[1].first, invs.at(i)[1].second, invs.at(i)[2].first, invs.at(i)[2].second}}});
-			}
+			if(DEBUG) cout<<s<<endl;
+			dnf.add("base", {}, s.c_str());
 		}
 		current_grounded++;
+		// if(!exists_vars.at(i).empty())correct_ex++;
+		// cout<<"grounded "<<current_grounded <<" " <<invs.at(i).size()<<endl;
 	}
 	ground_timer.stop();
 }

@@ -685,9 +685,13 @@ void Solver::enumerate_dnf(const vars_t& vars, const qalter_t& qalter, inv_set_t
 	vector<int> exists_type_list;
 	vector<string> exists_vars;
 	vector<int> leading_forall_vars;
-	helper.extract_exists_vars(vars, qalter, exists_type_to_varnum_map, exists_type_list, exists_vars, leading_forall_vars);
+	vector<string> not_leading_forall_vars;
+	helper.extract_exists_vars(vars, qalter, exists_type_to_varnum_map, exists_type_list, exists_vars, leading_forall_vars, not_leading_forall_vars);
+	cout<<"not_leading_forall_vars: "<<vec_to_str(not_leading_forall_vars)<<endl;
 	vector<vector<clause_t>> anded_clauses_with_redundancy; // ANDed terms that can appear in a nondecomposable DNF formula, first index is number of literals
-	helper.calc_anded_clauses(number_predicates, var_in_p, exists_vars, anded_clauses_with_redundancy, connected_components_dict_dict[vars][qalter]);
+	// helper.calc_anded_clauses(number_predicates, var_in_p, exists_vars, anded_clauses_with_redundancy, connected_components_dict_dict[vars][qalter]);
+
+	helper.calc_anded_clauses_fixed(number_predicates, var_in_p, not_leading_forall_vars, exists_vars, anded_clauses_with_redundancy, connected_components_dict_dict[vars][qalter]);
 	vector<vector<clause_t>> anded_clauses;  // ANDed terms without redundancy, if forall ... p /\ q -> r, then p /\ q /\ r is an in-clause-implication (ICI) redundant clause because r can be ommited
 	if (exists_vars.size() == 0) anded_clauses = anded_clauses_with_redundancy;
 	else remove_redundancy_in_anded_literal(vars, is_unique_ordered, anded_clauses_with_redundancy, anded_clauses);
@@ -750,6 +754,7 @@ void Solver::enumerate_dnf(const vars_t& vars, const qalter_t& qalter, inv_set_t
 				vector<vector<vector<clause_t>>> clause_combs_lists_cart_product = cart_product(clause_combs_lists);
 				inv_set_t invalidated_invs;
 				// "bagging" groups anded clauses with the same literal count, e.g., [[3], [1,4], [2,5]] --> [[[3]], [[1,4], [2,5]]]
+				
 				for (const vector<vector<clause_t>>& bagged_candidate_inv : clause_combs_lists_cart_product)
 				{
 					// 1) check if bagged_candidate_inv is in the simplest form
@@ -769,14 +774,14 @@ void Solver::enumerate_dnf(const vars_t& vars, const qalter_t& qalter, inv_set_t
 						bool is_tautology_DE = helper.check_if_candidate_inv_is_tautology(DE_mapped_candidate_inv, number_predicates, checked_tautology_dict[number_predicates]);
 						if (is_tautology_DE) continue;
 					}
-					
 					// 3) check if candidate_inv is in extended_invs or invalidated_invs
 					// if an and-superset of candidate_inv is in extended_invs, candidate_inv must be in extended_invs
 					bool inv_already_in_extended_invs = extended_invs.find(candidate_inv) != extended_invs.end();
-					if (inv_already_in_extended_invs) continue;
+					if (inv_already_in_extended_invs) {
+						continue;
+					}
 					bool inv_already_in_invalidated_invs = invalidated_invs.find(candidate_inv) != invalidated_invs.end();
 					if (inv_already_in_invalidated_invs) continue;
-
 					// 4) check if any or-subset of candidate_inv is in extended_invs
 					bool subset_is_inv = false;
 					if (num_or >= 2)
@@ -798,7 +803,6 @@ void Solver::enumerate_dnf(const vars_t& vars, const qalter_t& qalter, inv_set_t
 						if (exists_type_list.size() == 0) update_base_implied_formulas_each_clause_with_permutations(base_implied_formulas_each_clause, vars, is_unique_ordered, candidate_inv);
 						continue;
 					}
-
 					// 5) check if candidate_inv is a forall_one_clause_and_exists_invariant (FOCAEI) redundant form
 					bool is_FOCAEI_redundant = false;
 					if (exists_type_list.size() > 0)
@@ -852,7 +856,7 @@ void Solver::enumerate_dnf(const vars_t& vars, const qalter_t& qalter, inv_set_t
 
 					// 7) check candidate_inv against the samples
 					bool inv_hold_on_samples = true;
-					bool debug = false;
+					// bool debug = false;
 
 					// if(qalter==vector<bool>{false,false,true,false}){
 					// 	if(candidate_inv == set<vector<int>>{{5},{15},{23}}){
@@ -868,7 +872,6 @@ void Solver::enumerate_dnf(const vars_t& vars, const qalter_t& qalter, inv_set_t
 						// for example, if the instance has only one node, then forall N1 < N2. p(N1,N2) automatically holds on all samples
 						const inst_t& inst = it->first;
 						const DataMatrix& data_mat = it->second;
-						if(debug) cout<<"inst: "<<vec_to_str(inst)<<endl;
 						if (column_indices_dict.at(vars).at(inst).find(is_unique_ordered) != column_indices_dict.at(vars).at(inst).end())
 						{
 							int check_result = check_if_inv_on_csv(vars, qalter, inst, candidate_inv, data_mat, column_indices_dict.at(vars).at(inst).at(is_unique_ordered));
@@ -882,14 +885,38 @@ void Solver::enumerate_dnf(const vars_t& vars, const qalter_t& qalter, inv_set_t
 					}
 					if (inv_hold_on_samples)
 					{
-						cout<<"Invariant found: ";
-						for(const clause_t& anded_clause : candidate_inv)
-							cout<<vec_to_str(anded_clause)<<" ";
-						cout<<endl;
+						// cout<<"Invariant found: ";
+						// for(const clause_t& anded_clause : candidate_inv)
+						// 	cout<<vec_to_str(anded_clause)<<" ";
+						// cout<<endl;
 						inv_results.insert(candidate_inv);
+						// if(vars==vars_t({1,2,1,1}) && qalter==qalter_t({false,false,false,false})){
+						// 	for(auto& extended: extended_invs){
+						// 		cout<<"before extended: "<<endl;
+						// 		for(auto& clause: extended){
+						// 			cout<<vec_to_str(clause)<<endl;
+						// 		}
+						// 	}
+						// }
 						add_inv_with_permutations_and_subsets(extended_invs, vars, is_unique_ordered, candidate_inv);
+						// if(vars==vars_t({1,2,1,1}) && qalter==qalter_t({false,false,false,false})){
+						// 	for(auto& extended: extended_invs){
+						// 		cout<<"mid extended: "<<endl;
+						// 		for(auto& clause: extended){
+						// 			cout<<vec_to_str(clause)<<endl;
+						// 		}
+						// 	}
+						// }
 						add_PQR_implied_invs(inv_results, extended_invs, vars, is_unique_ordered, base_implied_formulas_each_clause, anded_clauses, candidate_inv, exists_type_list.size() > 0);
 						if (exists_type_list.size() == 0) update_base_implied_formulas_each_clause_with_permutations(base_implied_formulas_each_clause, vars, is_unique_ordered, candidate_inv);
+						// if(vars==vars_t({1,2,1,1}) && qalter==qalter_t({false,false,false,false})){
+						// 	for(auto& extended: extended_invs){
+						// 		cout<<"after extended: "<<endl;
+						// 		for(auto& clause: extended){
+						// 			cout<<vec_to_str(clause)<<endl;
+						// 		}
+						// 	}
+						// }
 					}
 					else
 					{
@@ -1899,8 +1926,18 @@ void Solver::auto_solve()
 					inv_set_t new_extended_invs;
 					helper.generalize_invs(extended_invs_dict[vars][qalter], column_indices_list, new_extended_invs);
 					extended_invs_dict[successor][qalter].insert(new_extended_invs.begin(), new_extended_invs.end());
+					if(successor==vars_t({1,1,2,1})){
+						if(new_extended_invs.find(inv_t({{19},{20}}))!=new_extended_invs.end()){
+							cout<<"find1 inv_t({{19},{20}}) in new_extended_invs"<<endl;
+						}
+					}
 					new_extended_invs.clear();
 					generalize_exists_xpxx_invs(vars, successor, qalter, extended_invs_dict.at(vars).at(qalter), new_extended_invs);  // TODO-now: fix
+					if(successor==vars_t({1,1,2,1})){
+						if(new_extended_invs.find(inv_t({{19},{20}}))!=new_extended_invs.end()){
+							cout<<"find2 inv_t({{19},{20}}) in new_extended_invs"<<endl;
+						}
+					}
 					extended_invs_dict[successor][qalter].insert(new_extended_invs.begin(), new_extended_invs.end());
 				}
 				auto inv_generalization_end_time = time_now();

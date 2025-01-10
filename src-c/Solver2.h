@@ -8,12 +8,38 @@
 #include "StringProcessor.h"
 #include <clingo.hh>
 
-#define COLUMN_COMPRESSION_THRESHOLD 50
+#define COLUMN_COMPRESSION_THRESHOLD 70 //TODO!
 #define BOUND_MAX_OR_COLUMN_THREDHOLD 75
 #define INV_HOLD_ON_CSV -1
 #define MAX_POS_EXISTS 3 //TODO!
 #define DISJ_STORE_CUTOFF_SIZE 4
 #define OPTIONAL_QUANTIFIED_VARIABLE_CUTOFF_SIZE 5
+
+#define O2O 1
+#define DEBUG 1
+class Solver;
+
+class FO_Propagator : public Clingo::Propagator
+{
+    bool dnf;
+    map<int, pair<int, int>> lit_to_aspoutno;
+    map<int, int> lit_to_aspvar;
+    map<int, int> lit_to_aspexists;
+    map<int,set<int>> one2one;
+    map<qalter_t, set<inv_lit_t>> checked;
+    Solver &csv_reader;
+    Config &config;
+    map<int, string> &var_to_type;
+    bool check_assignment(const Clingo::Assignment &assignment);
+
+public:
+    FO_Propagator(Solver &reader, Config &c, bool b)
+        : csv_reader(reader), config(c), lit_to_aspoutno(), lit_to_aspvar(), var_to_type(*(new map<int, string>())), dnf(b), one2one(), checked() {};
+    void assign_var_to_type(map<int, string> &v2t) { var_to_type = v2t; }
+    void init(Clingo::PropagateInit &init) override;
+    void check(Clingo::PropagateControl &control) override;
+    void assign_one2one(map<int,set<int>> &o2o) { one2one = o2o; }
+};
 
 class Solver
 {
@@ -61,6 +87,9 @@ private:
 	tuple<int, int, vars_t> clause_setting;
     vector<int> dnf_setting; 
     bool init_dnf;
+	map<int,set<int>> o2o;
+	FO_Propagator clause_propagator;
+    FO_Propagator dnf_propagator;
 
 	Timer solve_timer;
     Timer ground_timer;
@@ -69,15 +98,13 @@ private:
 	void prepare_clingo(Clingo::StringSpan args);
 	void clause_search();
 	void dnf_search();
-	bool model_to_formula(const Clingo::SymbolVector &formula, vars_t &vars, vector<pair<Clingo::Symbol, Clingo::Symbol>> &inv, vars_t &exist_vars);
-	bool model_to_clause(const Clingo::SymbolVector &formula, vars_t &vars, vector<pair<Clingo::Symbol, Clingo::Symbol>> &inv, vars_t &exist_vars);
-	void ground_clause(const vector<vector<pair<Clingo::Symbol, Clingo::Symbol>>> &invs, const vector<vars_t> &exists_vars, const vector<vars_t> &used_vars, bool final_clause);
+	void model_to_formula(const Clingo::SymbolVector &formula, vars_t &vars, vector<pair<Clingo::Symbol, Clingo::Symbol>> &inv, vars_t &exist_vars);
+	void model_to_clause(const Clingo::SymbolVector &formula, vars_t &vars, vector<pair<Clingo::Symbol, Clingo::Symbol>> &inv, vars_t &exist_vars);
+	void ground_invs_clause(const vector<vector<pair<Clingo::Symbol, Clingo::Symbol>>> &invs, const vector<vars_t> &exists_vars, const vector<vars_t> &used_vars, bool final_clause);
 	void ground_dnf(const vector<vector<pair<Clingo::Symbol, Clingo::Symbol>>> &invs, const vector<vars_t> &exists_vars);
 	void set_clause_setting(int num_exists, int len, vars_t vars);
 	void set_dnf_setting(vector<int>& formula_size);
-	bool check_invariant(const vars_t& vars, const qalter_t& qalter, const inv_t &candidate_inv); //opt: use the queue to parallelise
 	void from_csv_to_predicates(vector<string> &predicates);
-	int get_predicates_index(const vars_t& vars, const int& idx);
 
 
 
@@ -93,7 +120,7 @@ protected:  // visible to derived class InvRefiner
 	vars_t template_sizes;
 	vector<vars_t> vars_traversal_order;//TODO: what is the one_to_one_exists?
 	map<vars_t, vector<string>> predicates_dict;
-	map<inst_t, vector<string>> inst_predicates_dict;
+	
 	// nested array, dimensions are 1) type index, 2) number of quantified variables of this type, 3) instance size at this type, 4) unique/ordered
 	// the four indices above jointy point to a list of mappings, {ID1 -> id2, ID2 -> id3} can be one mapping, mappings are sorted by alphabetical order
 	vector<vector<vector<map<bool, vector<map<string, string>>>>>> single_type_mappings;
@@ -112,6 +139,10 @@ protected:  // visible to derived class InvRefiner
 	void calc_deuniqued_invs(const vars_t& vars, const qalter_t& qalter, vector<inv_set_t>& deuniqued_invs); //TODO: by ASP or?
 
 public:
+	bool check_invariant(const vars_t& vars, const qalter_t& qalter, const inv_t &candidate_inv); //opt: use the queue to parallelise
+
+	map<inst_t, vector<string>> inst_predicates_dict;
+	int get_pred_idx(const vars_t& vars, const int& idx);
 	Solver(string problem, int template_increase, int num_attempt, bool is_forall_only);
 	void early_preparations();
 	void auto_solve();

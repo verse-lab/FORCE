@@ -1,22 +1,33 @@
 #include "Helper.h"
 
-void Helper::extract_exists_vars(const vars_t& vars, const qalter_t& qalter, map<int, int>& exists_type_to_varnum_map, vector<int>& exists_type_list, vector<string>& exists_vars, vector<int>& leading_forall_vars)
+void Helper::extract_exists_vars(const vars_t& vars, const qalter_t& qalter, map<int, int>& exists_type_to_varnum_map, vector<int>& exists_type_list, vector<string>& exists_vars, vector<int>& leading_forall_vars, vector<string>& not_leading_forall_vars)
 {
 	assert(exists_vars.size() == 0);
 	assert(exists_type_to_varnum_map.size() == 0);
 	assert(exists_type_list.size() == 0);
 	assert(leading_forall_vars.size() == 0);
 	int num_types = config.type_order.size();
+	bool leading_forall = true;
 	for (int i = 0; i < num_types; i++)
 	{
 		if (qalter[i]) // this type is existentially quantified
 		{
+			leading_forall = false;
 			exists_type_to_varnum_map[i] = vars[i];
 			exists_type_list.push_back(i);
 			const string& type_abbr = config.type_abbrs.at(config.type_order[i]);
 			for (int j = 1; j <= vars[i]; j++)
 			{
 				exists_vars.push_back(type_abbr + std::to_string(j));
+				not_leading_forall_vars.push_back(type_abbr + std::to_string(j));
+			}
+		}
+		else if(!leading_forall)
+		{
+			const string& type_abbr = config.type_abbrs.at(config.type_order[i]);
+			for (int j = 1; j <= vars[i]; j++)
+			{
+				not_leading_forall_vars.push_back(type_abbr + std::to_string(j));
 			}
 		}
 	}
@@ -83,7 +94,7 @@ bool Helper::bfs_check_connectivity(const vector<set<int>>& edges, const clause_
 	return graph_connected;
 }
 
-void Helper::calc_anded_clauses_fixed(int number_predicates, const map<string, vector<int>>& var_in_p, const vector<string>& exists_vars, vector<vector<clause_t>>& anded_clauses, vector<map<clause_t, vector<clause_t>>>& connected_components_dicts)
+void Helper::calc_anded_clauses_fixed(int number_predicates, const map<string, vector<int>>& var_in_p, const vector<string> not_forall_leading_vars, const vector<string>& exists_vars, vector<vector<clause_t>>& anded_clauses, vector<map<clause_t, vector<clause_t>>>& connected_components_dicts)
 //TODO: lemma 6 needs to be amended
 {
 	anded_clauses.resize(config.max_anded_literals + 1);
@@ -119,6 +130,17 @@ void Helper::calc_anded_clauses_fixed(int number_predicates, const map<string, v
 		{
 			vector<clause_t> connected_components;
 			bool connected = bfs_check_connectivity(edges, candidate_clause, connected_components);
+			if(!connected){
+				set<int> candidate_lits;
+				for(auto& var:not_forall_leading_vars){
+					const vector<int>& p_indices = var_in_p.at(var);
+					candidate_lits.insert(p_indices.begin(),p_indices.end());
+				}
+				if(std::all_of(candidate_clause.begin(),candidate_clause.end(),[&candidate_lits](int lit){return candidate_lits.find(lit)!=candidate_lits.end();})){
+					// cout<<"new connected"<<endl;
+					connected = true;
+				}
+			}
 			if (connected)
 			{
 				// add negations

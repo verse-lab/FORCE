@@ -37,21 +37,22 @@ var_min_in(Var,Pred,P):-pick(P,L,_),pred_vars_no(L,Pred,Vars),var_in(Var,Vars),#
 
 % :- exists(0).
 
-:- pick(P,L1,Pos),pick(P,L2,Pos),L1<L2,pred_vars_no(L1,Pred,_),pred_vars_no(L2,Pred,_),var_used_time(Var1,P,1),var_used_time(Var2,P,1),Var1!=Var2, pick(P0,_,_),P0!=P, not var_used_p(Var1,P0),not var_used_p(Var2,P0).
+% prefix. (f(X1)/\f(X2))\/g(X) where X contains no X1 or X2, then it is subsumed by f(X1)\/g(X).
+
+:- pick(P0,_,_),P0!=P,pick(P,L1,Pos),pick(P,L2,Pos),L1<L2,pred_vars_no(L1,Pred,Vars1),pred_vars_no(L2,Pred,Vars2),min_subst(Vars1,Vars2,St0),all_subst_sum(St0,N),#count{Var1,Var2: Var1!=Var2,var_used_time(Var1,P,1),var_used_time(Var2,P,1),var_subst(St0,Var1,Var2),var_in(Var1,Vars1),var_in(Var2, Vars2),not var_used_p(Var1,P0),not var_used_p(Var2,P0)}==N.
 
 % TODO: bagged_simplified
 
-% TODO: 
-% (1) prune prefex A/\B/\C by weaker Ai\/Bj\/Ck where all but one is slipped (to be splitted into forall DONE and exists)
-% (2) prune notA/\notB by forall A\/B DONE
+
 
 % Q1 forall X1. Q2 A== Q1 forall X1!=X2. Q2 A and A(X2/X1).
 
-:- pick(P,L1,Pos),pick(P,L2,Pos),pred_vars_no(L1,Pred,Vars1),pred_vars_no(L2,Pred,Vars2), L1<L2, all_subst_sum(St,N), subst(Vars1,Vars2,St), #count{Var1,Var2: Var1!=Var2,var_in(Var1,Vars1),var_in(Var2,Vars2),var_subst(St,Var1,Var2),not to_type(Var1),not exists(Var1)}==N.
+
+:- pick(P,L1,Pos),pick(P,L2,Pos),pred_vars_no(L1,Pred,Vars1),pred_vars_no(L2,Pred,Vars2), L1<L2, min_subst(Vars1,Vars2,St),all_subst_sum(St,N), #count{Var1,Var2: Var1!=Var2,var_in(Var1,Vars1),var_in(Var2,Vars2),var_subst(St,Var1,Var2),not to_type(Var1),not exists(Var1)}==N.
 
 % remove_redundancy_in_anded_literal
 % Maybe not valid since we have clauses for pruning
-:- pick(P1,L1,Pos),pick(P2,L2,1-Pos),P1<P2,pred_vars_no(L1,Pred,Vars1),pred_vars_no(L2,Pred,Vars2), all_subst_sum(St,N), subst(Vars1,Vars2,St), #count{Var1,Var2: Var1!=Var2,var_in(Var1,Vars1),var_in(Var2,Vars2),var_subst(St,Var1,Var2),not to_type(Var1),not exists(Var1)}==N.
+:- pick(P1,L1,Pos),pick(P2,L2,1-Pos),P1<P2,pred_vars_no(L1,Pred,Vars1),pred_vars_no(L2,Pred,Vars2), all_subst_sum(St,N), min_subst(Vars1,Vars2,St), #count{Var1,Var2: Var1!=Var2,var_in(Var1,Vars1),var_in(Var2,Vars2),var_subst(St,Var1,Var2),not to_type(Var1),not exists(Var1)}==N.
 
 % TODO: did I ensure that subst is unique? e.g. a subst is changing no var
 

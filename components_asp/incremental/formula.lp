@@ -32,7 +32,7 @@
 
 % {formula(Rule, Cube_ori, Cube_new)}:-rule(Rule, Cube_ori),cube(Cube_new), cube_length(Cube_ori,L1), cube_length(Cube_new,L2),L1+L2<=max_cube.
 
-
+outcube_entailed(C,Cube,St):- pick_num(C,1),all_subst(St),output_no(C,Lit),cube_subst(Lit,Cube,St).
 
 % TODO: check whether to_type is correctly handled
 

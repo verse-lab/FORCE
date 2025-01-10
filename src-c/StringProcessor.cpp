@@ -758,7 +758,7 @@ void StringProcessor::from_config_to_predicates(vector<string> &predicates, map<
 		auto product = cart_product(to_be_producted);
 		for (auto const &prod : product)
 		{
-			if (!subst_to_vars.contains(prod))
+			if (subst_to_vars.find(prod) == subst_to_vars.end())
 			{
 				for (auto const &subst : all_subst)
 				{

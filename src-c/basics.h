@@ -78,6 +78,7 @@ typedef vector<int> lead_forall_vars_t;
 typedef vector<int> inst_t;     // number of objects for each type in an instance, consistent with type_order, e.g., [2, 1, 2]
 typedef vector<int> clause_t;   // an anded clause, consisting of column indices of predicates, e.g., [0, 3]
 typedef set<vector<int>> inv_t;      // a candidate invariant in disjunctive normal form (DNF), represented by column indices of predicates, e.g., [[3, 4, 7], [2]]
+typedef set<set<int>> inv_lit_t;	// in set
 typedef vector<bool> qalter_t;  // quantifier alternation, length = # of types, e.g., [false, true, false] -> forall exists forall
 typedef vector<int> noncore_comb_t;  // a combination of noncore candidates
 

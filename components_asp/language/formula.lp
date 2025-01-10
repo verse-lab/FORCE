@@ -34,9 +34,9 @@ oppcube(2*X+1,2*X):-lit_num(X).
 
 pick_num(P,N):-pick_num_in(P,N).
 
-% pick_num(1,3).
+% pick_num(1,2).
 % pick_num(2,1).
-% pick_num(3,0).
+% pick_num(3,1).
 
 N{pick(P,L,Pos):lit_num(L),pos(Pos)}N:-pick_num(P,N).
 
@@ -58,6 +58,11 @@ var_used_p(Var,P):-var_used_time(Var,P,_).
 var_used(Var):-var_used_p(Var,_).
 #show var_used/1.
 
+% Not directly entailed by clauses
+
+:- rule_len(R,N),forall_rule(R), all_subst(St), #count{P:pick_num(P,1),output_no(P,C),cube_subst(C,C1,St),rule(R,C1)}=N.
+:- rule_len(R,N),rule_exists(R,Evar),all_subst(St), var_subst(St,Evar,Var), exists(Var), #count{P:pick_num(P,1),output_no(P,C),cube_subst(C,C1,St),rule(R,C1)}=N.
+
 % Now we start to modulo the clauses
 
 % First, we need to extract all subsumed clauses
@@ -65,8 +70,8 @@ pick3(2*L1+Pos1,2*L2+Pos2,2*L3+Pos3):-pick(1,L1,Pos1),pick(2,L2,Pos2),pick(3,L3,
 pick2(2*L1+Pos1,2*L2+Pos2):-pick(1,L1,Pos1),pick(2,L2,Pos2), not pick(3,_,_), pick_num(3,0).
 pick1(2*L1+Pos1):-pick(1,L1,Pos1), not pick(2,_,_), pick_num(2,0).
 
-cube_subst(2*X,2*Y,St):-lit_subst(X,Y,St).
-cube_subst(2*X+1,2*Y+1,St):-lit_subst(X,Y,St).
+cube_subst(2*X,2*Y,St):-atom_subst(X,Y,St).
+cube_subst(2*X+1,2*Y+1,St):-atom_subst(X,Y,St).
 
 % There should be an existing clause that entails the subsumed clause
 % From clauses: rule, rule_varnum, rule_used, rule_len, rule_exists, forall_rule
@@ -105,12 +110,10 @@ entail3(R,P1,P2,P3):- entail3_30(R,P1,P2,P3).
 :-pick3(P1,P2,P3), not p_used(P2).
 :-pick3(P1,P2,P3), not p_used(P3).
 
-% #show entail3/4.
+#show entail3/4.
 
 :- not entail3(_,P1,P2,P3),pick3(P1,P2,P3).
 
-% cannot have A\/B\/(C/\D) if A\/B is correct TODO: more general
-:- rule(R,_),not 0{entail3(R,P1,P2,P3)}1.
 
 % TODO: check the body of entailment to avoid cube of length 1
 
@@ -131,7 +134,7 @@ entail2(R,P1,P2):- entail2_20(R,P1,P2).
 :-pick2(P1,P2), not p_used(P1).
 :-pick2(P1,P2), not p_used(P2).
 
-% #show entail2/3.
+#show entail2/3.
 
 :- not entail2(_,P1,P2),pick2(P1,P2).
 
@@ -147,8 +150,28 @@ p_used(P1):- entail1(_,P1).
 
 % deal with forall rule. Basically, forall X implies exists X, but check_if_inv_is_FOCAEI_redundant. (exists->forall?)
 
+% TODO: 
+% (1) prune prefex A/\B/\C by weaker Ai\/Bj\/Ck where all but one is slipped (to be splitted into forall DONE and exists)
+% (2) prune notA/\notB by forall A\/B DONE
+
 % If we need the existing one to prune, the length of cube need to be the same, but for forall, subset is okay
 :- rule_len(R,N),forall_rule(R),all_subst(St), pick_num(P,Num), Num>=N, output_no(P,C0), rule(R,C), cube_subst(C,C0,St), #count{C1:output_no(P,C1),C1!=C0,oppcube(C1,C2),cube_subst(C2,Cr,St),rule(R,Cr)}=N-1.
 
+% :- rule_len(R,N), N>1, rule_exists(R, Evar),all_subst(St), pick_num(P,Num), Num>=N, output_no(P,C0), rule(R,C), cube_subst(C,C0,St),var_subst(St,Evar, Var0), exists(Var0), #count{C1:output_no(P,C1),C1!=C0,oppcube(C1,C2),cube_subst(C2,Cr,St),rule(R,Cr)}=N-1.
+
 :- rule_len(R,N),forall_rule(R),all_subst(St), pick_num(P,N), #count{C:output_no(P,C),oppcube(C,C1),cube_subst(C1,Cr,St),rule(R,Cr)}=N. % TODO: whether this is useful
 
+% :- not output(3,one_b,(5,1),1).
+% :- not output(2,one_b,(5,0),1).
+% :- #count{A,B:output(1,decision,A,B)}!=2.
+% :- not entail3(_,_,_,_).
+
+% debug:- pick_num(P,N),N>1,output(P,_,Vars,_),exists(Var),not var_in(Var,Vars).
+% :-debug. % approximate to lemma 6?
+% #show debug/0.
+
+% debug1:- output(P,Pred,Vars1,_),output(P,Pred,Vars2,_),Vars1<Vars2.
+% #show debug1/0.
+
+% debug2:- output(P1,Pred,_,_),output(P2,Pred,_,_),P1<P2.
+% #show debug2/0.

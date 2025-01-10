@@ -42,19 +42,21 @@ relation member(N:node, Q:quorum)
 axiom forall Q1, Q2. exists N. member(N, Q1) & member(N, Q2)
 
 relation one_a(R:round)
-relation one_b(N:node, R:round) # 
-relation left_rnd(N:node, R:round) # 
+relation one_b_max_vote(N:node, R1:round, R2:round, V:value)
+relation one_b(N:node, R:round) # := exists RMAX, V. one_b_max_vote(N,R,RMAX,V)
+relation left_rnd(N:node, R:round) # := exists R2, RMAX, V. ~le(R2,R) & one_b_max_vote(N,R,RMAX,V)
 relation proposal(R:round, V:value) # 2a
 relation vote(N:node, R:round, V:value) # 2b
-relation decision(R:round, V:value) # got 2b from a quorum
+relation decision(N:node, R:round, V:value) # got 2b from a quorum
 
 after init {
     one_a(R) := false;
+    one_b_max_vote(N,R1,R2,V) := false;
     one_b(N,R) := false;
     left_rnd(N,R) := false;
     proposal(R,V) := false;
     vote(N,R,V) := false;
-    decision(R,V) := false;
+    decision(N,R,V) := false;
 }
 
 action send_1a(r:round) = {
@@ -76,6 +78,7 @@ action join_round(n:node, r:round, maxr:round, v:value) = {
             (forall MAXR:round,V:value. (~le(r,MAXR) & vote(n,MAXR,V)) -> le(MAXR,maxr))
            ));
     # send the 1b message
+    one_b_max_vote(n,r,maxr,v) := true;
     one_b(n,r) := true;
     left_rnd(n,R) := left_rnd(n,R) | ~le(r,R)
 }
@@ -104,11 +107,11 @@ action cast_vote (n:node, v:value, r:round) = {
     vote(n, r, v) := true;
 }
 
-action decide (r:round, v:value, q:quorum) = {
+action decide (n:node, r:round, v:value, q:quorum) = {
     # get 2b from a quorum
     require r ~= none;
     require member(N, q) -> vote(N, r, v);
-    decision(r, v) := true;
+    decision(n, r, v) := true;
 }
 
 export send_1a
@@ -118,4 +121,4 @@ export cast_vote
 export decide
 
 # safety property:
-invariant [1000000] (decision(R1,V1) & decision(R2,V2)) -> V1 = V2
+invariant [1000000] (decision(N1,R1,V1) & decision(N2,R2,V2)) -> V1 = V2
