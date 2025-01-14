@@ -1,8 +1,8 @@
 #ifndef INVREFINER_H
 #define INVREFINER_H
 
-// #include "Solver.h"
-#include "Solver2.h"
+#include "Solver.h"
+// #include "Solver2.h"
 #include "CounterexampleHandler.h"
 #include <future>
 #include <thread>
@@ -79,7 +79,7 @@ private:
 	void find_most_filtering_ctes(int k, vector<int>& cte_indices) const;
 	void write_success_signal(bool success, char signal_char);
 public:
-	InvRefiner(string problem, Parallel_Instance parallel_instance_, Refine_degree refine_degree_, int template_increase, int num_attempt) : Solver(problem, template_increase, num_attempt, parallel_instance_ == Parallel_Instance::forall_only), counterexample_count(0), refine_degree(refine_degree_), parallel_instance(parallel_instance_)
+	InvRefiner(string problem, Parallel_Instance parallel_instance_, Refine_degree refine_degree_, int template_increase, int num_attempt, bool cutoff, bool fix) : Solver(problem, template_increase, num_attempt, parallel_instance_ == Parallel_Instance::forall_only, cutoff, fix), counterexample_count(0), refine_degree(refine_degree_), parallel_instance(parallel_instance_)
 	{ 
 		default_ivy_log_file = "runtime/" + problem_name + "/ivy_check_log" + "_" + (parallel_instance_ == Parallel_Instance::forall_only ? "f" : "e") + std::to_string(template_increase) + ".txt";
 		signal_passing_file = "runtime/" + problem_name + "/signals.txt";

@@ -12,7 +12,7 @@
 #external my_length(1..length).
 :- #count{Pred,Vars,Pos:output(Pred,Vars,Pos)}!=L, my_length(L), not flyvy.
 
-duoai.
+% duoai.
 
 pos(0;1).
 #show output/3.

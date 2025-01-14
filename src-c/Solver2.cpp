@@ -178,7 +178,7 @@ void FO_Propagator::check(Clingo::PropagateControl &control)
 }
 
 
-Solver::Solver(string problem, int template_increase, int num_attempt, bool is_forall_only) : processor(config), helper(config, processor), encoder(config, processor),solve_timer("solve"),ground_timer("ground"),other_timer("other"), init_dnf(false),clause_propagator(*this,config,false),dnf_propagator(*this,config,true)
+Solver::Solver(string problem, int template_increase, int num_attempt, bool is_forall_only, bool c, bool fix) : processor(config), helper(config, processor), encoder(config, processor),solve_timer("solve"),ground_timer("ground"),other_timer("other"), init_dnf(false),clause_propagator(*this,config,false),dnf_propagator(*this,config,true),cutoff(c)
 {
 	problem_name = problem;
 	template_increase_times = template_increase;
@@ -189,7 +189,6 @@ Solver::Solver(string problem, int template_increase, int num_attempt, bool is_f
 	config.max_exists = 0;
 	config.max_ored_clauses = 0;
 	config.max_anded_literals = 0;
-	config.max_pos_exists = MAX_POS_EXISTS;
 	config.one_to_one_exists = false;
 	config.hard = false;
 	read_config(config_file, &config);
@@ -819,7 +818,8 @@ bool Solver::check_invariant(const vars_t& vars, const qalter_t& qalter, const i
 	vector<int> exists_type_list;
 	vector<string> exists_vars;
 	vector<int> leading_forall_vars;
-	helper.extract_exists_vars(vars, qalter, exists_type_to_varnum_map, exists_type_list, exists_vars, leading_forall_vars);
+	vector<string> not_leading_forall_vars;
+	helper.extract_exists_vars(vars, qalter, exists_type_to_varnum_map, exists_type_list, exists_vars, leading_forall_vars, not_leading_forall_vars);
 	bool inv_hold_on_samples = true;
 	for (map<inst_t, DataMatrix>::const_iterator it = inst_data_mat_dict_each_leading_forall.at(leading_forall_vars).begin(); it != inst_data_mat_dict_each_leading_forall.at(leading_forall_vars).end(); it++){
 		const inst_t &inst = it->first;
@@ -1340,6 +1340,7 @@ void Solver::prepare_clingo(Clingo::StringSpan args)
 		dnf.add("base", {}, pred.c_str());
 	}
 	clause.load("../components_asp/language/clause.lp");
+	if(cutoff)clause.add("base", {}, "duoai.");
 	clause.register_propagator(clause_propagator);
 	clause.ground({{"base", {}}});
 	dnf.load("../components_asp/language/formula.lp");

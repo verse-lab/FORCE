@@ -11,7 +11,6 @@
 #define COLUMN_COMPRESSION_THRESHOLD 70 //TODO!
 #define BOUND_MAX_OR_COLUMN_THREDHOLD 75
 #define INV_HOLD_ON_CSV -1
-#define MAX_POS_EXISTS 3 //TODO!
 #define DISJ_STORE_CUTOFF_SIZE 4
 #define OPTIONAL_QUANTIFIED_VARIABLE_CUTOFF_SIZE 5
 
@@ -120,6 +119,7 @@ protected:  // visible to derived class InvRefiner
 	vars_t template_sizes;
 	vector<vars_t> vars_traversal_order;//TODO: what is the one_to_one_exists?
 	map<vars_t, vector<string>> predicates_dict;
+	bool cutoff;
 	
 	// nested array, dimensions are 1) type index, 2) number of quantified variables of this type, 3) instance size at this type, 4) unique/ordered
 	// the four indices above jointy point to a list of mappings, {ID1 -> id2, ID2 -> id3} can be one mapping, mappings are sorted by alphabetical order
@@ -143,7 +143,7 @@ public:
 
 	map<inst_t, vector<string>> inst_predicates_dict;
 	int get_pred_idx(const vars_t& vars, const int& idx);
-	Solver(string problem, int template_increase, int num_attempt, bool is_forall_only);
+	Solver(string problem, int template_increase, int num_attempt, bool is_forall_only, bool cutoff, bool fix);
 	void early_preparations();
 	void auto_solve();
 	void encode_and_output(const string& outfile, map<int, tuple<vars_t, qalter_t, inv_t>>& id_to_inv, const vector<tuple<vars_t, qalter_t, string>>& more_invs = {});

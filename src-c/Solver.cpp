@@ -1,6 +1,6 @@
 #include "Solver.h"
 
-Solver::Solver(string problem, int template_increase, int num_attempt, bool is_forall_only) : processor(config), helper(config, processor), encoder(config, processor)
+Solver::Solver(string problem, int template_increase, int num_attempt, bool is_forall_only, bool cutoff, bool f) : processor(config), helper(config, processor), encoder(config, processor), fix(f)
 {
 	problem_name = problem;
 	template_increase_times = template_increase;
@@ -11,7 +11,10 @@ Solver::Solver(string problem, int template_increase, int num_attempt, bool is_f
 	config.max_exists = 0;
 	config.max_ored_clauses = 0;
 	config.max_anded_literals = 0;
-	config.max_pos_exists = MAX_POS_EXISTS;
+	if(cutoff)config.max_pos_exists = MAX_POS_EXISTS;
+	else config.max_pos_exists = 10;
+	// config.max_pos_exists = MAX_POS_EXISTS;
+	cout<<"cut off: "<<cutoff<<endl;
 	config.one_to_one_exists = false;
 	config.hard = false;
 	read_config(config_file, &config);
@@ -687,11 +690,12 @@ void Solver::enumerate_dnf(const vars_t& vars, const qalter_t& qalter, inv_set_t
 	vector<int> leading_forall_vars;
 	vector<string> not_leading_forall_vars;
 	helper.extract_exists_vars(vars, qalter, exists_type_to_varnum_map, exists_type_list, exists_vars, leading_forall_vars, not_leading_forall_vars);
-	cout<<"not_leading_forall_vars: "<<vec_to_str(not_leading_forall_vars)<<endl;
 	vector<vector<clause_t>> anded_clauses_with_redundancy; // ANDed terms that can appear in a nondecomposable DNF formula, first index is number of literals
-	// helper.calc_anded_clauses(number_predicates, var_in_p, exists_vars, anded_clauses_with_redundancy, connected_components_dict_dict[vars][qalter]);
-
-	helper.calc_anded_clauses_fixed(number_predicates, var_in_p, not_leading_forall_vars, exists_vars, anded_clauses_with_redundancy, connected_components_dict_dict[vars][qalter]);
+	if(!fix){
+		helper.calc_anded_clauses(number_predicates, var_in_p, exists_vars, anded_clauses_with_redundancy, connected_components_dict_dict[vars][qalter]);
+	} else{
+		helper.calc_anded_clauses_fixed(number_predicates, var_in_p, not_leading_forall_vars, exists_vars, anded_clauses_with_redundancy, connected_components_dict_dict[vars][qalter]);
+	}
 	vector<vector<clause_t>> anded_clauses;  // ANDed terms without redundancy, if forall ... p /\ q -> r, then p /\ q /\ r is an in-clause-implication (ICI) redundant clause because r can be ommited
 	if (exists_vars.size() == 0) anded_clauses = anded_clauses_with_redundancy;
 	else remove_redundancy_in_anded_literal(vars, is_unique_ordered, anded_clauses_with_redundancy, anded_clauses);

@@ -97,6 +97,11 @@ bool Helper::bfs_check_connectivity(const vector<set<int>>& edges, const clause_
 void Helper::calc_anded_clauses_fixed(int number_predicates, const map<string, vector<int>>& var_in_p, const vector<string> not_forall_leading_vars, const vector<string>& exists_vars, vector<vector<clause_t>>& anded_clauses, vector<map<clause_t, vector<clause_t>>>& connected_components_dicts)
 //TODO: lemma 6 needs to be amended
 {
+	set<int> candidate_lits;
+	for(auto& var:not_forall_leading_vars){
+		const vector<int>& p_indices = var_in_p.at(var);
+		candidate_lits.insert(p_indices.begin(),p_indices.end());
+	}
 	anded_clauses.resize(config.max_anded_literals + 1);
 	connected_components_dicts.resize(config.max_anded_literals + 1);
 	// build the graph, node represents predicate, add edge between nodes iff predicates share an existentially quantified variable
@@ -131,13 +136,7 @@ void Helper::calc_anded_clauses_fixed(int number_predicates, const map<string, v
 			vector<clause_t> connected_components;
 			bool connected = bfs_check_connectivity(edges, candidate_clause, connected_components);
 			if(!connected){
-				set<int> candidate_lits;
-				for(auto& var:not_forall_leading_vars){
-					const vector<int>& p_indices = var_in_p.at(var);
-					candidate_lits.insert(p_indices.begin(),p_indices.end());
-				}
 				if(std::all_of(candidate_clause.begin(),candidate_clause.end(),[&candidate_lits](int lit){return candidate_lits.find(lit)!=candidate_lits.end();})){
-					// cout<<"new connected"<<endl;
 					connected = true;
 				}
 			}

@@ -1,5 +1,5 @@
-#include "Solver2.h"
-// #include "Solver.h"
+// #include "Solver2.h"
+#include "Solver.h"
 #include "InvRefiner.h"
 
 
@@ -15,6 +15,8 @@ int main(int argc, char* argv[])
 
 	int template_increase = 0;
 	int init_attempt = 0;
+	bool cutoff = true;
+	bool fix=true;
 	Parallel_Instance parallel_instance = Parallel_Instance::forall_only;
 	for (int i = 2; i < argc; i++) {
 		string arg_str = argv[i];
@@ -36,6 +38,13 @@ int main(int argc, char* argv[])
 		else if (arg_str.rfind("--init_attempt=", 0) == 0) {
 			init_attempt = atoi(arg_str.substr(15).c_str());
 		}
+		else if (arg_str.rfind("--cutoff=", 0) == 0) {
+			int cut = atoi(arg_str.substr(9).c_str());
+			cutoff = cut == 0 ? false : true;
+		}
+		else if (arg_str.rfind("--fix=", 0 ) == 0) { // For original DuoAI, this is to fix lemma 6 or not, for our case, this is to config by Flyvy or not
+			fix = atoi(arg_str.substr(6).c_str()) == 0 ? false : true;
+		}
 		else {
 			cout << "Invalid command line argument " << arg_str << endl;
 			exit(-1);
@@ -47,8 +56,8 @@ int main(int argc, char* argv[])
 	{
 		cout << "Retry with a larger formula size" << endl;
 	}
-
-	InvRefiner refiner(problem, parallel_instance, Refine_degree::removal_and_coimpl, template_increase, num_attempt);
+	cout<<"cut off: "<<cutoff<<endl;
+	InvRefiner refiner(problem, parallel_instance, Refine_degree::removal_and_coimpl, template_increase, num_attempt,cutoff,fix);
 	refiner.auto_enumerate_and_refine();
 	
 	auto end_time = time_now();

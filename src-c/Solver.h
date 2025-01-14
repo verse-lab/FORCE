@@ -17,6 +17,7 @@
 class Solver
 {
 private:
+	bool fix;
 	qalter_t forall_only_qalter;
 	map<inst_t, DataMatrix> inst_data_mat_dict;
 	map<vector<int>, map<inst_t, DataMatrix>> inst_data_mat_dict_each_leading_forall;  // key vector<int> is the list of variable numbers for each leading forall type
@@ -95,7 +96,7 @@ protected:  // visible to derived class InvRefiner
 	void calc_deuniqued_invs(const vars_t& vars, const qalter_t& qalter, vector<inv_set_t>& deuniqued_invs);
 
 public:
-	Solver(string problem, int template_increase, int num_attempt, bool is_forall_only);
+	Solver(string problem, int template_increase, int num_attempt, bool is_forall_only, bool cutoff, bool fix);
 	void early_preparations();
 	void auto_solve();
 	void encode_and_output(const string& outfile, map<int, tuple<vars_t, qalter_t, inv_t>>& id_to_inv, const vector<tuple<vars_t, qalter_t, string>>& more_invs = {});
