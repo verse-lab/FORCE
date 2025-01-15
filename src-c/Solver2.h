@@ -15,7 +15,7 @@
 #define OPTIONAL_QUANTIFIED_VARIABLE_CUTOFF_SIZE 5
 
 #define O2O 1
-#define DEBUG 1
+#define DEBUG 0
 class Solver;
 
 class FO_Propagator : public Clingo::Propagator
@@ -37,7 +37,9 @@ public:
     void assign_var_to_type(map<int, string> &v2t) { var_to_type = v2t; }
     void init(Clingo::PropagateInit &init) override;
     void check(Clingo::PropagateControl &control) override;
-    void assign_one2one(map<int,set<int>> &o2o) { one2one = o2o; }
+    void assign_one2one(map<int,set<int>> &o2o) { 
+		one2one = o2o; 
+	}
 };
 
 class Solver

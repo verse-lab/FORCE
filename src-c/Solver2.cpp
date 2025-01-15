@@ -125,10 +125,6 @@ bool FO_Propagator::check_assignment(const Clingo::Assignment &assignment)
                                     auto tmp_inv2 = tmp_inv;
                                     tmp_inv2.insert(tmp_cube);
                                     checked_qalter.insert(tmp_inv2);
-                                    // cout<<"inserted: "<<endl;
-                                    // for(auto &lit : tmp_inv2){
-                                    //     cout<<"lit: "<<vec_to_str(vector<int>(lit.begin(),lit.end()))<<endl;
-                                    // }
                                 }
                             }
                         }
@@ -178,13 +174,14 @@ void FO_Propagator::check(Clingo::PropagateControl &control)
 }
 
 
-Solver::Solver(string problem, int template_increase, int num_attempt, bool is_forall_only, bool c, bool fix) : processor(config), helper(config, processor), encoder(config, processor),solve_timer("solve"),ground_timer("ground"),other_timer("other"), init_dnf(false),clause_propagator(*this,config,false),dnf_propagator(*this,config,true),cutoff(c)
+Solver::Solver(string problem, int template_increase, int num_attempt, bool is_forall_only, bool c, bool flyvy) : processor(config), helper(config, processor), encoder(config, processor),solve_timer("solve"),ground_timer("ground"),other_timer("other"), init_dnf(false),clause_propagator(*this,config,false),dnf_propagator(*this,config,true),cutoff(c)
 {
 	problem_name = problem;
 	template_increase_times = template_increase;
 	formula_size_increase_times = num_attempt;
 	string csv_file_base = "../traces/" + problem + "_" + std::to_string(template_increase) + "/";
 	string config_file = "../configs/" + problem + "_" + std::to_string(template_increase) + ".txt";
+	if(flyvy) config_file = "../flyvy_configs/" + problem + ".txt";
 	config.max_literal = 0;
 	config.max_exists = 0;
 	config.max_ored_clauses = 0;

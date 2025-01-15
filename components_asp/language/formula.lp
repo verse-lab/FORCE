@@ -161,17 +161,6 @@ p_used(P1):- entail1(_,P1).
 
 :- rule_len(R,N),forall_rule(R),all_subst(St), pick_num(P,N), #count{C:output_no(P,C),oppcube(C,C1),cube_subst(C1,Cr,St),rule(R,Cr)}=N. % TODO: whether this is useful
 
-% :- not output(3,one_b,(5,1),1).
-% :- not output(2,one_b,(5,0),1).
-% :- #count{A,B:output(1,decision,A,B)}!=2.
-% :- not entail3(_,_,_,_).
 
-% debug:- pick_num(P,N),N>1,output(P,_,Vars,_),exists(Var),not var_in(Var,Vars).
-% :-debug. % approximate to lemma 6?
-% #show debug/0.
-
-% debug1:- output(P,Pred,Vars1,_),output(P,Pred,Vars2,_),Vars1<Vars2.
-% #show debug1/0.
-
-% debug2:- output(P1,Pred,_,_),output(P2,Pred,_,_),P1<P2.
-% #show debug2/0.
+to_type(to_hide_warning).
+individual(to_hide_warning).

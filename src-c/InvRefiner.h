@@ -1,8 +1,8 @@
 #ifndef INVREFINER_H
 #define INVREFINER_H
 
-#include "Solver.h"
-// #include "Solver2.h"
+// #include "Solver.h"
+#include "Solver2.h"
 #include "CounterexampleHandler.h"
 #include <future>
 #include <thread>

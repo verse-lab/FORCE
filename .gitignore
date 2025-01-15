@@ -5,3 +5,5 @@ traces/
 auto_samplers/
 configs/
 outputs/
+result/
+.DS_Store

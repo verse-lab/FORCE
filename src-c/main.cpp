@@ -1,5 +1,5 @@
-// #include "Solver2.h"
-#include "Solver.h"
+#include "Solver2.h"
+// #include "Solver.h"
 #include "InvRefiner.h"
 
 
@@ -16,7 +16,7 @@ int main(int argc, char* argv[])
 	int template_increase = 0;
 	int init_attempt = 0;
 	bool cutoff = true;
-	bool fix=true;
+	bool fix=false;
 	Parallel_Instance parallel_instance = Parallel_Instance::forall_only;
 	for (int i = 2; i < argc; i++) {
 		string arg_str = argv[i];

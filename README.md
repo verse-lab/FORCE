@@ -81,3 +81,8 @@ If a protocol is solved by bottom-up refinement (e.g., ```flexible_paxos```), th
 
 - DuoAI.py:
   The top-level wrapper. Manage multiple simulation and refinement processes running in parallel.
+
+
+https://github.com/yangdinglou/Duoai_plus/blob/main/src-c/Helper.cpp#L133C18-L143C5 These several lines are to fix the lemma 6 mentioned in Flyvy paper (pg34 of [this](https://arxiv.org/pdf/2405.10308))
+
+./main multi_paxos --parallel_instance=top_down_or_bottom_up (or ./build/main)

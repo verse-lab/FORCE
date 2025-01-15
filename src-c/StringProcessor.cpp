@@ -677,18 +677,39 @@ void StringProcessor::add_checked_invs(vector<tuple<vars_t, qalter_t, string>>& 
 	}
 }
 
+pair<vector<int>, vector<int>> producing_orbit(int num){
+	vector<int> vars;
+	vector<int> orbit;
+	int n = 1;
+	for(int i = 1; i<=num; i++){
+		vars.push_back(i);
+		n *=i;
+	}
+	for(int i = 0; i<n; i++){
+		orbit.push_back(i);
+	}
+	return make_pair(vars, orbit);
+}
+
+vector<vector<int>> generate_permutations(int size,int start = 0) {
+    vector<int> base(size);
+    iota(base.begin(), base.end(), start);
+    vector<vector<int>> perms;
+    do {
+        perms.push_back(base);
+    } while (next_permutation(base.begin(), base.end()));
+    return perms;
+}
+
 void StringProcessor::from_config_to_predicates(vector<string> &predicates, map<int, string> &var_to_type)
 {
 	map<string, vector<int>> type_to_vars;
-	// set<string> po_types;
 
 	vector<vector<int>> subst_vec;
-	// vector<vector<int>> subst_vec, var_vec;
 	for (auto const &type : config.total_ordered_types)
 	{
 		auto type_name = config.type_order[type.first];
 		predicates.push_back("to_type(" + type_name + ").");
-		// po_types.insert(type_name);
 	}
 	for (auto type_num{0}; auto const &type_name : config.type_order)
 	{
@@ -700,32 +721,16 @@ void StringProcessor::from_config_to_predicates(vector<string> &predicates, map<
 			type_num++;
 			predicates.push_back(tmp);
 		}
-		if (config.template_vars_map.at(type_name).size() == 1)
-		{
-			subst_vec.push_back(vector<int>{0});
-			// var_vec.push_back(vector<int>{1});
-			predicates.push_back("possible_type_num(" + type_name + "," + "1).");
+		auto prod = producing_orbit(config.template_vars_map.at(type_name).size());
+		subst_vec.push_back(prod.second);
+		string tmp = "possible_type_num(" + type_name + "," + "1";
+		for(auto i = 2; i<=config.template_vars_map.at(type_name).size(); i++){
+			tmp += ";" + type_name + "," + std::to_string(i);
 		}
-		else if (config.template_vars_map.at(type_name).size() == 2)
-		{
-			// if(po_types.find(type_name) != po_types.end()){
-			// 	subst_vec.push_back(vector<int>{0});
-			// }
-			// else{
-			// 	subst_vec.push_back(vector<int>{0, 1});
-			// }
-			subst_vec.push_back(vector<int>{0, 1});
-			// var_vec.push_back(vector<int>{1, 2});
-			predicates.push_back("possible_type_num(" + type_name + "," + "1;" + type_name + ",2).");
-		}
-		else
-		{
-			std::cerr << "TODO: handle orbits of more than 2 variables in a type" << endl;
-			assert(false);
-		}
+		tmp += ").";
+		predicates.push_back(tmp);
 	}
 	auto all_subst = cart_product(subst_vec);
-	// vars_traversal_order = cart_product(var_vec);
 	map<vector<int>, map<int, int>> var_subst;
 	for (auto &subst : all_subst)
 	{
@@ -733,19 +738,17 @@ void StringProcessor::from_config_to_predicates(vector<string> &predicates, map<
 		for (auto i{0}; i < subst.size(); i++)
 		{
 			auto &vars = type_to_vars[config.type_order[i]];
-			if (subst[i] == 1)
-			{
-				var_subst[subst][vars[0]] = vars[1];
-				var_subst[subst][vars[1]] = vars[0];
+			auto permuts = generate_permutations(vars.size(),vars[0]);
+			for(auto &p: permuts){
+				cout<<vec_to_str(p)<<endl;
 			}
-			else
-			{
-				var_subst[subst][vars[0]] = vars[0];
-			}
+
+			for (auto j{0}; j < vars.size(); j++) {
+                var_subst[subst][vars[j]] = permuts[subst[i]][j]; // Adjusted for permutation
+            }
 		}
 	}
 	map<vector<int>, map<vector<int>, vector<int>>> subst_to_vars;
-	// int no{0};
 	for (auto &rel : config.relations)
 	{
 		string rel_name = rel.first;
@@ -758,7 +761,7 @@ void StringProcessor::from_config_to_predicates(vector<string> &predicates, map<
 		auto product = cart_product(to_be_producted);
 		for (auto const &prod : product)
 		{
-			if (subst_to_vars.find(prod) == subst_to_vars.end())
+			if (!subst_to_vars.contains(prod))
 			{
 				for (auto const &subst : all_subst)
 				{
@@ -766,38 +769,20 @@ void StringProcessor::from_config_to_predicates(vector<string> &predicates, map<
 					for (auto j{0}; j < out.size(); j++)
 					{
 						auto type_name = var_to_type[out[j]];
-						if (subst[config.type_name_to_index.at(type_name)] == 1)
-						{
-							auto vars = type_to_vars[type_name];
-							assert(vars.size() == 2);
-							auto changed = vars[0] == out[j] ? vars[1] : vars[0];
-							out[j] = changed;
-						}
+						auto vars = type_to_vars[type_name];
+						auto permuts = generate_permutations(vars.size(),vars[0]);
+						out[j] = permuts[subst[config.type_name_to_index.at(type_name)]][out[j]-vars[0]];
 					}
 					subst_to_vars[prod][subst] = out;
 				}
 			}
-			// string tmp = "pred_vars_no(" +std::to_string(no++)+"," + rel_name + ", ";
-			// tmp += vec_to_tuple(prod) + ").";
-
-			// tmp += ")) :- ";
-			// set<int> tmp_set(prod.begin(), prod.end());
-			// for(auto const& var: tmp_set)
-			// {
-			// 	tmp += "valid_var(" + std::to_string(var) + "),";
-			// }
-			// tmp.pop_back();
-			// tmp += ".";
-			// predicates.push_back(tmp);
 		}
 	}
-	// lit_num = no;
 
 	for (auto const &subst : all_subst)
 	{
 		auto sum = std::accumulate(subst.begin(), subst.end(), 0);
 		string tmp = "all_subst(" + vec_to_tuple(subst) + ").\n" + "all_subst_sum(" + vec_to_tuple(subst) + "," + std::to_string(sum) + ").\n";
-		// cout<<tmp<<endl;
 		predicates.push_back(tmp);
 	}
 	for (auto const &[subst, var_pairs] : var_subst)
@@ -805,7 +790,6 @@ void StringProcessor::from_config_to_predicates(vector<string> &predicates, map<
 		for (auto const &[var, subst_var] : var_pairs)
 		{
 			string tmp = "var_subst(" + vec_to_tuple(subst) + "," + std::to_string(var) + "," + std::to_string(subst_var) + ").";
-			// cout<<tmp<<endl;
 			predicates.push_back(tmp);
 		}
 	}
@@ -814,7 +798,6 @@ void StringProcessor::from_config_to_predicates(vector<string> &predicates, map<
 		for (auto const &[subst, out] : subst_to_out)
 		{
 			string tmp = "subst(" + vec_to_tuple(prod) + "," + vec_to_tuple(out) + "," + vec_to_tuple(subst) + ").";
-			// cout<<tmp<<endl;
 			predicates.push_back(tmp);
 		}
 	}
