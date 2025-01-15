@@ -739,9 +739,6 @@ void StringProcessor::from_config_to_predicates(vector<string> &predicates, map<
 		{
 			auto &vars = type_to_vars[config.type_order[i]];
 			auto permuts = generate_permutations(vars.size(),vars[0]);
-			for(auto &p: permuts){
-				cout<<vec_to_str(p)<<endl;
-			}
 
 			for (auto j{0}; j < vars.size(); j++) {
                 var_subst[subst][vars[j]] = permuts[subst[i]][j]; // Adjusted for permutation
@@ -761,7 +758,7 @@ void StringProcessor::from_config_to_predicates(vector<string> &predicates, map<
 		auto product = cart_product(to_be_producted);
 		for (auto const &prod : product)
 		{
-			if (!subst_to_vars.contains(prod))
+			if (subst_to_vars.find(prod) == subst_to_vars.end())
 			{
 				for (auto const &subst : all_subst)
 				{

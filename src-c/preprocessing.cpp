@@ -205,6 +205,26 @@ void read_config(const string& config_file, Config* config)
 				config->shadow_relations[shadow_relation[0]] = { shadow_relation.begin() + 1, shadow_relation.end() };
 			}
 		}
+		else if (startswith(line, "possible_exist:")){
+			// possible_exist: Q1; N1 translates to possible_exist(Q1). possible_exist(N1).
+			vector<vector<string>> groups;
+			two_delimeters_parse_line(line.substr(15), ';', ':', groups);
+			for(const vector<string>& group : groups){
+				config->flyvy_specific += "possible_exist(" + std::to_string(config->vars_to_idx[group[0]]) + ").\n";
+			}
+		}
+		else if (startswith(line, "never_used:")){
+			vector<vector<string>> groups;
+			two_delimeters_parse_line(line.substr(11), ';', ':', groups);
+			for(const vector<string>& group : groups){
+				config->flyvy_specific += "never_used(" + std::to_string(config->vars_to_idx[group[0]]) + ").\n";
+			}
+		}
+		else if (startswith(line, "nesting:"))
+		{
+			int nesting = std::stoi(line.substr(8));
+			config->flyvy_specific += "nesting(" + std::to_string(nesting) + ").\n";
+		}
 		else
 		{
 			cout << "Unparsable line in config" << line << endl;

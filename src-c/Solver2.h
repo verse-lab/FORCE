@@ -77,7 +77,7 @@ private:
 
 	bool check_if_qfree_dnf_formula_holds_on_data_line(const int* data_line, const vector<vector<int>>& candidate_inv_as_data_indices) const;
 	
-
+	bool flyvy;
 	Clingo::Control clause;
     Clingo::Control dnf;
 	map<vars_t, vector<int>> pred_idx;

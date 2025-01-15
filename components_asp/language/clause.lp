@@ -30,9 +30,7 @@ output_no(No,Pos):-output(Pred,Vars,Pos),pred_vars_no(No,Pred,Vars).
 E{exists(Var):var_used(Var)}E:-exists_length(E), not flyvy.
 :- exists(Var1), var_type(Var1,Type), not exists(Var2), var_type(Var2,Type), var_used(Var2), not flyvy.
 
-E{exists(Var):possible_exi(Var),var_used(Var)}E:-exists_length(E), flyvy.
 
-:- not exists(Var1), var_type(Var1,Type), Var1<Var2, exists(Var2), var_type(Var2,Type), var_used(Var1), flyvy.
 
 #show exists/1.
 

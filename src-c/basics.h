@@ -106,6 +106,7 @@ struct Config
 	vector<string> safety_properties;
 	vector<pair<string, int>> checked_inv_pairs;
 	map<string, vector<string>> shadow_relations;
+	string flyvy_specific;
 };
 
 struct DataMatrix

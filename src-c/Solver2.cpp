@@ -71,7 +71,6 @@ bool FO_Propagator::check_assignment(const Clingo::Assignment &assignment)
             if(checked.find(qalter) == checked.end()) checked[qalter] = set<inv_lit_t>();
             auto& checked_qalter = checked[qalter];
             if(checked_qalter.find(inv_lit) != checked_qalter.end()){
-                cout<<"hhh"<<endl;
                 return true;
             }
             bool ret = csv_reader.check_invariant(vars, qalter, candidate_inv);
@@ -106,7 +105,6 @@ bool FO_Propagator::check_assignment(const Clingo::Assignment &assignment)
                 //     cout<<"lit: "<<vec_to_str(vector<int>(lit.begin(),lit.end()))<<endl;
                 // }
                 if(checked_qalter.find(inv_lit) != checked_qalter.end()){
-                    cout<<"hh"<<endl;
                     return true;
                 }
                 bool ret = csv_reader.check_invariant(vars, qalter, candidate_inv);
@@ -174,14 +172,17 @@ void FO_Propagator::check(Clingo::PropagateControl &control)
 }
 
 
-Solver::Solver(string problem, int template_increase, int num_attempt, bool is_forall_only, bool c, bool flyvy) : processor(config), helper(config, processor), encoder(config, processor),solve_timer("solve"),ground_timer("ground"),other_timer("other"), init_dnf(false),clause_propagator(*this,config,false),dnf_propagator(*this,config,true),cutoff(c)
+Solver::Solver(string problem, int template_increase, int num_attempt, bool is_forall_only, bool c, bool f) : processor(config), helper(config, processor), encoder(config, processor),solve_timer("solve"),ground_timer("ground"),other_timer("other"), init_dnf(false),clause_propagator(*this,config,false),dnf_propagator(*this,config,true),cutoff(c), flyvy(f)
 {
 	problem_name = problem;
 	template_increase_times = template_increase;
 	formula_size_increase_times = num_attempt;
 	string csv_file_base = "../traces/" + problem + "_" + std::to_string(template_increase) + "/";
 	string config_file = "../configs/" + problem + "_" + std::to_string(template_increase) + ".txt";
-	if(flyvy) config_file = "../flyvy_configs/" + problem + ".txt";
+	if(flyvy) {
+		config_file = "../flyvy_configs/" + problem + ".txt";
+		config.flyvy_specific = "flyvy.\n";
+	}
 	config.max_literal = 0;
 	config.max_exists = 0;
 	config.max_ored_clauses = 0;
@@ -189,6 +190,7 @@ Solver::Solver(string problem, int template_increase, int num_attempt, bool is_f
 	config.one_to_one_exists = false;
 	config.hard = false;
 	read_config(config_file, &config);
+	if(DEBUG)cout<<config.flyvy_specific<<endl;
 	// round-robin template increase
 	if (is_forall_only)
 	{
@@ -204,7 +206,6 @@ Solver::Solver(string problem, int template_increase, int num_attempt, bool is_f
 		config.max_anded_literals = config.max_anded_literals + (formula_size_increase_times + 1) / 4;
 		config.max_exists = config.max_exists + formula_size_increase_times / 4;
 	}
-	cout << "current formula size: max-literal=" << config.max_literal << ", max-ored-clauses=" << config.max_ored_clauses << ", max-anded-literals=" << config.max_anded_literals << ", max-exists=" << config.max_exists << ", template-increase=" << template_increase << endl;
 	num_types = config.type_order.size();
 	processor.initialize();
 	check_config_well_formed();
@@ -841,12 +842,11 @@ void Solver::from_csv_to_predicates(vector<string> &predicates)
 	for (int i = 0; i < literals.size(); i++)
 	{
 		auto &pred = literals[i];
-		// cout<<"literal: "<<i<<pred<<endl;
 
 		auto pred_name_find = pred.find("(");
 		string pred_name;
 		vector<int> pred_vars;
-		if (pred_name_find == string::npos)
+		if (pred_name_find == string::npos)//TODO: ticket
 		{
 			assert(config.individuals.size() == 1);
 			auto individual_name = (*config.individuals.begin()).first;
@@ -881,8 +881,6 @@ int Solver::get_pred_idx(const vars_t &vars, const int &idx)
 	if (pred_idx.find(vars) == pred_idx.end())
 	{
 		auto &literals = inst_predicates_dict[template_sizes];
-		cout<<vec_to_str(literals)<<endl;
-		cout<<vec_to_str(inst_predicates_dict[vars])<<endl;
 		pred_idx[vars] = vector<int>(literals.size(), -1);
 		pred_idx[vars][idx] = std::find(inst_predicates_dict[vars].begin(), inst_predicates_dict[vars].end(), literals[idx]) - inst_predicates_dict[vars].begin();
 		assert(pred_idx[vars][idx] != inst_predicates_dict[vars].size());
@@ -1299,9 +1297,9 @@ void Solver::auto_solve()
 	// 		}
 	// 	}
 	// }
-	prepare_clingo({"-t6","0"}); //warning: the number of threads is set to 6
+	prepare_clingo({"-t6","0"}); //warning: the number of threads is set to 6. TODO: customised by user
 	clause_search();
-	dnf_search();//opt: grouping and parallel
+	if(!flyvy)dnf_search();//opt: grouping and parallel
 	
 	cout << "Invariant enumeration finished" << endl;
 }
@@ -1323,34 +1321,29 @@ void Solver::prepare_clingo(Clingo::StringSpan args)
 	lit_num = lits.size();
 	cube_num = 2*(lit_num+1);
 	clause = Clingo::Control(args);
-	dnf = Clingo::Control(args);
+	if(!flyvy)dnf = Clingo::Control(args);
 	for (auto const &pred : aux)
 	{
-		cout<<pred<<endl;
+		if(DEBUG)cout<<pred<<endl;
 		clause.add("base", {}, pred.c_str());
-		dnf.add("base", {}, pred.c_str());
+		if(!flyvy)dnf.add("base", {}, pred.c_str());
 	}
 	for (auto const &pred : lits)
 	{
-		cout<<pred<<endl;
+		if(DEBUG)cout<<pred<<endl;
 		clause.add("base", {}, pred.c_str());
-		dnf.add("base", {}, pred.c_str());
+		if(!flyvy)dnf.add("base", {}, pred.c_str());
 	}
+	if(flyvy)clause.add("base", {}, config.flyvy_specific.c_str());
 	clause.load("../components_asp/language/clause.lp");
 	if(cutoff)clause.add("base", {}, "duoai.");
 	clause.register_propagator(clause_propagator);
 	clause.ground({{"base", {}}});
-	dnf.load("../components_asp/language/formula.lp");
-	split_n_into_k_numbers_bulk(config.max_literal, config.max_ored_clauses, config.max_anded_literals, n_into_k);
-	// for(auto &k:n_into_k){
-	// 	for(auto &l:k){
-	// 		for(auto &m:l){
-	// 			cout<<vec_to_str(m)<<" ";
-	// 		}
-	// 		cout<<endl;
-	// 	}
-	// }
-	dnf_setting.resize(config.max_ored_clauses,0);
+	if(!flyvy){
+		dnf.load("../components_asp/language/formula.lp");
+		split_n_into_k_numbers_bulk(config.max_literal, config.max_ored_clauses, config.max_anded_literals, n_into_k);
+		dnf_setting.resize(config.max_ored_clauses,0);
+	}
 }
 
 void Solver::clause_search()
