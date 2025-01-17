@@ -49,7 +49,7 @@ private:
 	void reduce_predicates(vector<string>& old_predicates, vector<string>& new_predicates, int type_index, int var_index_to_remove) const;
 	void calc_vars_traversal_order();
 	void calc_vars_qalters_exists_number();
-	void enumerate_dnf(const vars_t& vars, const qalter_t& qalter, inv_set_t& inv_results, inv_set_t& extended_invs);
+	void enumerate_dnf(const vars_t& vars, const qalter_t& qalter, inv_set_t& inv_results, inv_set_t& extended_invs,int& time_clause);
 	void remove_redundancy_in_anded_literal(const vars_t& vars, const vector<bool>& is_unique_ordered, const vector<vector<clause_t>>& anded_clauses_with_redundancy, vector<vector<clause_t>>& anded_clauses) const;
 	bool check_if_bagged_formula_is_simplified(const vector<vector<clause_t>>& bagged_formula, int number_predicates);
 	bool check_if_inv(const DataMatrix& data_mat, const inv_t& comb) const;

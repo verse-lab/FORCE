@@ -674,7 +674,7 @@ void Solver::calc_vars_qalters_exists_number()
 	}
 }
 
-void Solver::enumerate_dnf(const vars_t& vars, const qalter_t& qalter, inv_set_t& inv_results, inv_set_t& extended_invs)
+void Solver::enumerate_dnf(const vars_t& vars, const qalter_t& qalter, inv_set_t& inv_results, inv_set_t& extended_invs, int& time_clause)
 {
 	// vars specifies the number of quantified variables for each type, qalter specifies for each type, whether the variables are universally or existentially quantified
 	// preparation steps
@@ -738,6 +738,7 @@ void Solver::enumerate_dnf(const vars_t& vars, const qalter_t& qalter, inv_set_t
 		for (int num_literal = config.max_literal; num_literal >= num_or; num_literal--)
 		{
 			// put num_literal balls into num_or buckets, at least one ball per bucket, number of balls non-decreasing from first to last bucket
+			auto start_time = time_now();
 			const vector<vector<int>>& ways_to_split = n_into_k[num_literal][num_or];
 			bool time_for_space_highest_or = num_or >= DISJ_STORE_CUTOFF_SIZE && num_or == config.max_ored_clauses;
 			if (time_for_space_highest_or && num_literal > num_or) continue;
@@ -927,6 +928,9 @@ void Solver::enumerate_dnf(const vars_t& vars, const qalter_t& qalter, inv_set_t
 						add_permuted_candidates(invalidated_invs, vars, is_unique_ordered, candidate_inv);
 					}
 				}
+			}
+			if(num_literal == num_or){
+				time_clause += time_diff(time_now(), start_time);
 			}
 		}
 	}
@@ -1903,7 +1907,7 @@ void Solver::auto_solve()
 	split_n_into_k_numbers_bulk(config.max_literal, config.max_ored_clauses, config.max_anded_literals, n_into_k);
 	auto late_prep_end_time = time_now();
 	cout << "Solver preparation time: " << std::fixed << std::setprecision(2) << double(time_diff(late_prep_end_time, early_prep_start_time))/1000000 << "s" << endl;
-
+	auto enumeration_clause_time = 0;
 	// first enumerate existential-quantifier-free invariants, then one exists, two exists, and so on
 	for (int num_exists = 0; num_exists <= config.max_exists; num_exists++)
 	{
@@ -1915,7 +1919,8 @@ void Solver::auto_solve()
 				vector<bool> is_unique_ordered; qalter_to_unique_ordered(qalter, is_unique_ordered);
 				inv_set_t invs;
 				cout << "enumerating vars " << vec_to_str(vars) << " and qalter " << vec_to_str(qalter) << endl;
-				enumerate_dnf(vars, qalter, invs, extended_invs_dict[vars][qalter]);
+				
+				enumerate_dnf(vars, qalter, invs, extended_invs_dict[vars][qalter],enumeration_clause_time);
 				invs_dict[vars][qalter] = invs;
 				// for each vars successor succesor of the current subtemplate, project the checked invariants
 
@@ -1954,6 +1959,7 @@ void Solver::auto_solve()
 	processor.add_checked_invs(solver_more_invs);
 	
 	cout << "Invariant enumeration finished" << endl;
+	cout << "Enumeration clause time: " << std::fixed << std::setprecision(2) << double(enumeration_clause_time)/1000000 << "s" << endl;
 }
 
 void Solver::encode_and_output(const string& outfile, map<int, tuple<vars_t, qalter_t, inv_t>>& id_to_inv, const vector<tuple<vars_t, qalter_t, string>>& more_invs)

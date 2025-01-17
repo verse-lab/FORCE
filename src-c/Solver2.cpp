@@ -1298,10 +1298,13 @@ void Solver::auto_solve()
 	// 	}
 	// }
 	prepare_clingo({"-t6","0"}); //warning: the number of threads is set to 6. TODO: customised by user
+	auto search_start_time = time_now();
 	clause_search();
+	auto search_end_time = time_now();
 	if(!flyvy)dnf_search();//opt: grouping and parallel
 	
 	cout << "Invariant enumeration finished" << endl;
+	cout << "Clause search time: " << std::fixed << std::setprecision(2) << double(time_diff(search_end_time, search_start_time))/1000000 << "s" << endl;
 }
 
 void Solver::encode_and_output(const string& outfile, map<int, tuple<vars_t, qalter_t, inv_t>>& id_to_inv, const vector<tuple<vars_t, qalter_t, string>>& more_invs)
