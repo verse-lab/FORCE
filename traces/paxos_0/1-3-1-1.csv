@@ -1,0 +1,2 @@
+"member(N1,Q1)",one_a(R1),"one_b(N1,R1)","left_rnd(N1,R1)","proposal(R1,V1)","proposal(R1,V2)","proposal(R1,V3)","vote(N1,R1,V1)","vote(N1,R1,V2)","vote(N1,R1,V3)","decision(N1,R1,V1)","decision(N1,R1,V2)","decision(N1,R1,V3)",none=R1
+1,0,0,0,0,0,0,0,0,0,0,0,0,1

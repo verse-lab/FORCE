@@ -52,7 +52,7 @@ The first command runs the original DuoAI's invariant enumeration (with two unso
 - config/:
   The configuration files for the invariant synthesis.
 
-The config and traces generation need extra setups for DuoAI, so we simply provide the generated files in this repository.
+The config and traces generation need extra setups for DuoAI, so we simply provide the generated files in this repository (as they are inputs of the synthesis).
 
 - components_asp/:
   The ASP encoding of the invariant synthesis.

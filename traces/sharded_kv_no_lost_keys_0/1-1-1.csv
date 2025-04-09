@@ -1,0 +1,4 @@
+"table(N1,K1,V1)","owner(N1,K1)","transfer_msg(N1,K1,V1)"
+1,1,0
+0,0,1
+0,1,0

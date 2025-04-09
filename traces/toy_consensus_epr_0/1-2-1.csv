@@ -1,0 +1,4 @@
+"member(N1,Q1)","member(N1,Q2)",voted(N1),"vote(N1,V1)",decided(V1)
+1,1,1,1,0
+1,1,1,1,1
+1,1,0,0,0

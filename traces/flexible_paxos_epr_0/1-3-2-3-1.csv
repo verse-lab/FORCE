@@ -1,0 +1,2 @@
+"member_1(N1,QUORUM_11)","member_1(N1,QUORUM_12)","member_2(N1,QUORUM_21)","member_2(N1,QUORUM_22)","member_2(N1,QUORUM_23)",one_a(R1),"one_b(N1,R1)","left_rnd(N1,R1)","proposal(R1,V1)","proposal(R1,V2)","proposal(R1,V3)","vote(N1,R1,V1)","vote(N1,R1,V2)","vote(N1,R1,V3)","decision(R1,V1)","decision(R1,V2)","decision(R1,V3)",none=R1
+1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1

@@ -1,0 +1,4 @@
+"member(N1,Q1)","member(N2,Q1)",one_a(R1),"one_b_msg(N1,R1,VO1)","one_b_msg(N1,R1,VO2)","one_b_msg(N2,R1,VO1)","one_b_msg(N2,R1,VO2)","left_round(N1,R1)","left_round(N2,R1)","joined_round(N1,R1)","joined_round(N2,R1)","proposal(I1,R1,VA1)",active(R1),"vote(N1,I1,R1,VA1)","vote(N2,I1,R1,VA1)","decision(N1,I1,R1,VA1)","decision(N2,I1,R1,VA1)",none=R1
+1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1
