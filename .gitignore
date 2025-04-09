@@ -4,6 +4,7 @@
 traces/
 auto_samplers/
 configs/
+src-py/
 outputs/
 result/
 .DS_Store

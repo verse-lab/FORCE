@@ -217,7 +217,9 @@ void read_config(const string& config_file, Config* config)
 			vector<vector<string>> groups;
 			two_delimeters_parse_line(line.substr(11), ';', ':', groups);
 			for(const vector<string>& group : groups){
-				config->flyvy_specific += "never_used(" + std::to_string(config->vars_to_idx[group[0]]) + ").\n";
+				string tmp = "never_used(" + std::to_string(config->vars_to_idx[group[0]]) + ").\n";
+				cout<<tmp<<endl;
+				config->flyvy_specific += tmp;
 			}
 		}
 		else if (startswith(line, "nesting:"))

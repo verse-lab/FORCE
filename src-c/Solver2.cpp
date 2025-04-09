@@ -265,16 +265,16 @@ void Solver::calc_predicates_dict()
 	int num_optional_qauntified_variables = std::accumulate(template_sizes.begin(), template_sizes.end(), 0) - num_types;
 	bool memory_explosion_expected = ((total_num_predicates > COLUMN_COMPRESSION_THRESHOLD) && (config.max_ored_clauses >= DISJ_STORE_CUTOFF_SIZE || num_optional_qauntified_variables >= OPTIONAL_QUANTIFIED_VARIABLE_CUTOFF_SIZE))
 		|| ((total_num_predicates > COLUMN_COMPRESSION_THRESHOLD*3/4) && (config.max_ored_clauses > DISJ_STORE_CUTOFF_SIZE || num_optional_qauntified_variables > OPTIONAL_QUANTIFIED_VARIABLE_CUTOFF_SIZE));
-	if (memory_explosion_expected)
-	{
-		cout << "Exiting for memory safety..." << endl;
-		exit(-1);
-	}
-	if (predicates_dict.at(template_sizes).size() > BOUND_MAX_OR_COLUMN_THREDHOLD)
-	{
-		cout << "Too many predicates (" << predicates_dict.at(template_sizes).size() << ") that can appear in the invariants. Bounding initial max_ored_clauses to <=2." << endl;
-		config.max_literal = min2(config.max_literal, 2);
-	}
+	// if (memory_explosion_expected)
+	// {
+	// 	cout << "Exiting for memory safety..." << endl;
+	// 	exit(-1);
+	// }
+	// if (predicates_dict.at(template_sizes).size() > BOUND_MAX_OR_COLUMN_THREDHOLD)
+	// {
+	// 	cout << "Too many predicates (" << predicates_dict.at(template_sizes).size() << ") that can appear in the invariants. Bounding initial max_ored_clauses to <=2." << endl;
+	// 	config.max_literal = min2(config.max_literal, 2);
+	// }
 
 	for (int type_index = 0; type_index < num_types; type_index++)
 	{
@@ -848,13 +848,20 @@ void Solver::from_csv_to_predicates(vector<string> &predicates)
 		vector<int> pred_vars;
 		if (pred_name_find == string::npos)//TODO: ticket
 		{
-			assert(config.individuals.size() == 1);
-			auto individual_name = (*config.individuals.begin()).first;
-			pred_name_find = pred.find(individual_name);
-			assert(pred_name_find != string::npos);
-			pred_name = individual_name;
-			pred_vars.push_back(config.vars_to_idx[pred.substr(pred_name_find + individual_name.size() + 1)]);
-			predicates.push_back("individual(" + individual_name + ").");
+			// assert(config.individuals.size() == 1);
+			for(auto const& [key, value]: config.individuals){
+				pred_name_find = pred.find(key);
+				if(pred_name_find != string::npos){
+					pred_name = key;
+					break;
+				}
+			}
+			// auto individual_name = (*config.individuals.begin()).first;
+			// pred_name_find = pred.find(individual_name);
+			// assert(pred_name_find != string::npos);
+			// pred_name = individual_name;
+			pred_vars.push_back(config.vars_to_idx[pred.substr(pred_name_find + pred_name.size() + 1)]);
+			predicates.push_back("individual(" + pred_name + ").");
 		}
 		else
 		{
@@ -1279,29 +1286,18 @@ void Solver::auto_solve()
 	auto late_prep_end_time = time_now();
 	cout << "Solver preparation time: " << std::fixed << std::setprecision(2) << double(time_diff(late_prep_end_time, early_prep_start_time))/1000000 << "s" << endl;
 
-	// first enumerate existential-quantifier-free invariants, then one exists, two exists, and so on
-	// for (int num_exists = 0; num_exists <= config.max_exists; num_exists++)
-	// {
-	// 	// iterate through each subtemplate and enumerate candidate invariants
-	// 	for (const vars_t& vars : vars_traversal_order)
-	// 	{
-	// 		for (const qalter_t& qalter : vars_qalter_exists_number[vars][num_exists])
-	// 		{
-	// 			vector<bool> is_unique_ordered; qalter_to_unique_ordered(qalter, is_unique_ordered);
-	// 			inv_set_t invs;
-	// 			cout << "enumerating vars " << vec_to_str(vars) << " and qalter " << vec_to_str(qalter) << endl;
-	// 			// enumerate_dnf(vars, qalter, invs);
-	// 			invs_dict[vars][qalter] = invs;
-	// 			// for each vars successor succesor of the current subtemplate, project the checked invariants
 
-	// 		}
-	// 	}
-	// }
-	prepare_clingo({"-t6","0"}); //warning: the number of threads is set to 6. TODO: customised by user
+	prepare_clingo({"-t1","0"}); //warning: the number of threads is set to 6. TODO: customised by user
 	auto search_start_time = time_now();
 	clause_search();
 	auto search_end_time = time_now();
 	if(!flyvy)dnf_search();//opt: grouping and parallel
+	else{
+		//create flyvy file, named problem_name.lp
+		ofstream flyvy_file_stream;
+		flyvy_file_stream.open(problem_name+".lp");
+		flyvy_file_stream<<flyvy_file;
+	}
 	
 	cout << "Invariant enumeration finished" << endl;
 	cout << "Clause search time: " << std::fixed << std::setprecision(2) << double(time_diff(search_end_time, search_start_time))/1000000 << "s" << endl;
@@ -1330,12 +1326,14 @@ void Solver::prepare_clingo(Clingo::StringSpan args)
 		if(DEBUG)cout<<pred<<endl;
 		clause.add("base", {}, pred.c_str());
 		if(!flyvy)dnf.add("base", {}, pred.c_str());
+		else flyvy_file+=pred;
 	}
 	for (auto const &pred : lits)
 	{
 		if(DEBUG)cout<<pred<<endl;
 		clause.add("base", {}, pred.c_str());
 		if(!flyvy)dnf.add("base", {}, pred.c_str());
+		else flyvy_file+=pred;
 	}
 	if(flyvy)clause.add("base", {}, config.flyvy_specific.c_str());
 	clause.load("../components_asp/language/clause.lp");
@@ -1543,7 +1541,8 @@ void Solver::ground_invs_clause(const vector<vector<pair<Clingo::Symbol, Clingo:
 			s += "rule_len(" + std::to_string(current_grounded) + "," + std::to_string(invs.at(i).size()) + ").\n";
 			s+="forall_rule(" + std::to_string(current_grounded) + ").\n";
 			if(DEBUG) cout<<s<<endl;
-			dnf.add("base", {}, s.c_str());
+			if(!flyvy)dnf.add("base", {}, s.c_str());
+			else flyvy_file+=s;
 		}
 		else{
 			if (!final_clause) clause.ground({{"correct_inv_exi", {Clingo::Number(current_grounded), Clingo::Number((int)invs.at(i).size()), Clingo::Number(int(exists_vars.at(i).size()))}}});
@@ -1565,7 +1564,8 @@ void Solver::ground_invs_clause(const vector<vector<pair<Clingo::Symbol, Clingo:
 				if (!final_clause) clause.assign_external(Clingo::Function("exi", {Clingo::Number(current_grounded), Clingo::Number(var)}), Clingo::TruthValue::True);
 			}
 			if(DEBUG) cout<<s<<endl;
-			dnf.add("base", {}, s.c_str());
+			if(!flyvy)dnf.add("base", {}, s.c_str());
+			else flyvy_file+=s;
 		}
 		current_grounded++;
 		// if(!exists_vars.at(i).empty())correct_ex++;

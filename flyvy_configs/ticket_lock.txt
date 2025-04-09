@@ -7,6 +7,6 @@ individuals: zero: ticket; service: ticket; next_ticket: ticket
 max-literal: 4
 max-or: 4
 max-and: 3
-max-exists: 1
+max-exists: 0
 instance-sizes: 1,2;  2,1;  3,1;  1,1;  2,3;  3,3;  2,2;  3,2;  1,3
 safety-property: pc3(T1) & pc3(T2) -> T1 = T2

@@ -95,7 +95,6 @@ bool Helper::bfs_check_connectivity(const vector<set<int>>& edges, const clause_
 }
 
 void Helper::calc_anded_clauses_fixed(int number_predicates, const map<string, vector<int>>& var_in_p, const vector<string> not_forall_leading_vars, const vector<string>& exists_vars, vector<vector<clause_t>>& anded_clauses, vector<map<clause_t, vector<clause_t>>>& connected_components_dicts)
-//TODO: lemma 6 needs to be amended
 {
 	set<int> candidate_lits;
 	for(auto& var:not_forall_leading_vars){
