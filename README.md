@@ -2,6 +2,8 @@
 
 This repository contains the implementation of FORCE, a tool for synthesizing first-order formulas from a set of FO structures (as examples); with the integration in [DuoAI](https://github.com/VeriGu/DuoAI).
 
+## The supplementary material of the paper is at [this appendix](https://github.com/verse-lab/FORCE/blob/main/appendix.pdf).
+
 ## Dependencies
 
 - [Clingo](https://potassco.org/clingo/) (>= 5.5.0)
@@ -10,7 +12,7 @@ This repository contains the implementation of FORCE, a tool for synthesizing fi
 
 ## Building
 
-To build FORCE
+To build FORCE, you might need to adjust the C++ compiler and libclingo locations in the src-c/CMakeLists.txt file.
 
 ```bash
 cd src-c/
