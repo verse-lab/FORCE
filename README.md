@@ -1,8 +1,7 @@
 # FORCE (First-Order synthesiser via oRthogonal sliCEs)
 
-This repository contains the implementation of FORCE, a tool for synthesizing first-order formulas from a set of FO structures (as examples); with the integration in [DuoAI](https://github.com/VeriGu/DuoAI).
-
-## The supplementary material of the paper is at [this appendix](https://github.com/verse-lab/FORCE/blob/main/appendix.pdf).
+This [repository](https://github.com/verse-lab/FORCE) contains the implementation of FORCE, a tool for synthesizing first-order formulas from a set of FO structures (as examples); with the integration in [DuoAI](https://github.com/VeriGu/DuoAI).
+The research paper for FORCE is "Inductive First-Order Formula Synthesis by ASP: A Case Study in Invariant Inference", to appear in ICLP 2025.
 
 ## Dependencies
 
@@ -61,7 +60,4 @@ The config and traces generation need extra setups for DuoAI, so we simply provi
 
 - src-c/:
   The C++ implementation of original DuoAI and FORCE (in Solver2 files).
-
-
-<!-- https://github.com/yangdinglou/Duoai_plus/blob/main/src-c/Helper.cpp#L133C18-L143C5 These several lines are to fix the lemma 6 mentioned in Flyvy paper (pg34 of [this](https://arxiv.org/pdf/2405.10308)) -->
 
