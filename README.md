@@ -1,7 +1,7 @@
 # FORCE (First-Order synthesiser via oRthogonal sliCEs)
 
 This [repository](https://github.com/verse-lab/FORCE) contains the implementation of FORCE, a tool for synthesizing first-order formulas from a set of FO structures (as examples); with the integration in [DuoAI](https://github.com/VeriGu/DuoAI).
-The research paper for FORCE is "Inductive First-Order Formula Synthesis by ASP: A Case Study in Invariant Inference", to appear in ICLP 2025.
+The [research paper](https://verse-lab.github.io/papers/force-iclp25.pdf) for FORCE is "Inductive First-Order Formula Synthesis by ASP: A Case Study in Invariant Inference", to appear in ICLP 2025.
 
 ## Dependencies
 
